@@ -1,0 +1,41 @@
+.app {
+  max-width: 32rem;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+  text-align: center;
+}
+
+.app h1 {
+  font-size: 2.5rem;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.tagline {
+  color: light-dark(#555, #a1a1aa);
+  line-height: 1.5;
+}
+
+.status {
+  display: inline-block;
+  margin-top: 2rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status--checking {
+  background: light-dark(#f0f0f0, #27272a);
+  color: light-dark(#666, #a1a1aa);
+}
+
+.status--online {
+  background: light-dark(#e6f7ec, #123522);
+  color: light-dark(#1a7f4b, #4ade80);
+}
+
+.status--offline {
+  background: light-dark(#fdecea, #3a1a17);
+  color: light-dark(#b3261e, #f87171);
+}
