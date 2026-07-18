@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://formatly:formatly@localhost:5432/formatly"
     redis_url: str = "redis://localhost:6379/0"
     anthropic_api_key: str = ""
-    jwt_secret: str = "change-me"
-    jwt_algorithm: str = "HS256"
+    access_token_ttl_seconds: int = 15 * 60
+    refresh_token_ttl_seconds: int = 30 * 24 * 60 * 60
     cors_origins: list[str] = ["http://localhost:5173"]
 
 

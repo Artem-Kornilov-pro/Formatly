@@ -1,6 +1,6 @@
 COMPOSE = docker compose
 
-.PHONY: env up down build logs ps shell-backend shell-frontend test test-backend test-frontend lint lint-backend lint-frontend clean
+.PHONY: env up down build logs ps shell-backend shell-frontend test test-backend test-frontend lint lint-backend lint-frontend migrate makemigrations clean
 
 env:
 	@test -f .env || cp .env.example .env
@@ -41,6 +41,12 @@ lint-backend: env
 
 lint-frontend: env
 	$(COMPOSE) run --rm frontend npm run lint
+
+migrate: env
+	$(COMPOSE) run --rm backend alembic upgrade head
+
+makemigrations: env
+	$(COMPOSE) run --rm backend alembic revision --autogenerate -m "$(m)"
 
 clean:
 	$(COMPOSE) down -v
