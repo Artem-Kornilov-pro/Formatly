@@ -1,7 +1,7 @@
 import pytest_asyncio
 import redis.asyncio as redis_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.db import Base, get_db
 from app.core.redis import get_redis
 from app.main import app
+from app.models.formatting_profile import FormattingProfile
 
 settings = get_settings()
 
@@ -39,6 +40,10 @@ async def _clean_state():
         await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {_TEST_SCHEMA}"))
         await conn.run_sync(Base.metadata.create_all)
 
+    async with test_session_maker() as session:
+        session.add(FormattingProfile(name="Test GOST", rules={}))
+        await session.commit()
+
     redis_client = redis_asyncio.from_url(_TEST_REDIS_URL, decode_responses=True)
     app.dependency_overrides[get_redis] = lambda: redis_client
 
@@ -56,3 +61,10 @@ async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def system_profile_id(_clean_state) -> str:
+    async with test_session_maker() as session:
+        profile = await session.scalar(select(FormattingProfile))
+        return str(profile.id)

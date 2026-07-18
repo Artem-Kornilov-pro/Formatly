@@ -29,6 +29,7 @@ services:
       - ./backend/app:/app/app
       - ./backend/tests:/app/tests
       - ./backend/migrations:/app/migrations
+      - uploads_data:/app/uploads
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -61,3 +62,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:

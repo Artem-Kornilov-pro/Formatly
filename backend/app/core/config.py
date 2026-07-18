@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     access_token_ttl_seconds: int = 15 * 60
     refresh_token_ttl_seconds: int = 30 * 24 * 60 * 60
     cors_origins: list[str] = ["http://localhost:5173"]
+    uploads_dir: str = "/app/uploads"
 
 
 @lru_cache
