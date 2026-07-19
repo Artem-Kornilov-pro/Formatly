@@ -11,4 +11,5 @@ class JobOut(BaseModel):
     profile_id: str
     input_file: str
     output_file: str | None
+    error_message: str | None
     created_at: datetime

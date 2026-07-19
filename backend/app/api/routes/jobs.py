@@ -27,6 +27,7 @@ def _job_out(job: Job) -> JobOut:
         profile_id=str(job.profile_id),
         input_file=job.input_file,
         output_file=job.output_file,
+        error_message=job.error_message,
         created_at=job.created_at,
     )
 
