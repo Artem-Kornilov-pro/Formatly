@@ -44,7 +44,10 @@ services:
     command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info"]
     volumes:
       - ./backend/app:/app/app
+      - uploads_data:/app/uploads
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
 

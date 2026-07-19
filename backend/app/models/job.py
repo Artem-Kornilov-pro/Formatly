@@ -34,4 +34,5 @@ class Job(Base):
     )
     input_file: Mapped[str] = mapped_column(String(255), nullable=False)
     output_file: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
