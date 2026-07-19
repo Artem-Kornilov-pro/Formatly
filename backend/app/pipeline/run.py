@@ -1,0 +1,57 @@
+import uuid
+from collections.abc import Callable
+
+from anthropic import Anthropic
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.core.config import get_settings
+from app.core.db import async_session_maker
+from app.core.storage import input_file_path, output_file_path
+from app.models.formatting_profile import FormattingProfile
+from app.models.job import Job, JobStatus
+from app.models.validation_report import ValidationReport
+from app.pipeline.classifier import classify_paragraphs
+from app.pipeline.formatter import apply_formatting
+from app.pipeline.parser import parse_docx
+from app.pipeline.validator import validate_document
+
+
+async def process_job(
+    job_id: uuid.UUID,
+    anthropic_client: Anthropic | None = None,
+    session_maker: Callable[[], AsyncSession] | async_sessionmaker | None = None,
+) -> None:
+    settings = get_settings()
+    session_maker = session_maker or async_session_maker
+
+    async with session_maker() as session:
+        job = await session.get(Job, job_id)
+        if job is None:
+            return
+
+        job.status = JobStatus.PROCESSING
+        await session.commit()
+
+        try:
+            profile = await session.get(FormattingProfile, job.profile_id)
+            paragraphs = parse_docx(input_file_path(job.id))
+
+            client = anthropic_client or Anthropic(api_key=settings.anthropic_api_key)
+            classified = classify_paragraphs(paragraphs, client)
+
+            output_path = output_file_path(job.id)
+            changes = apply_formatting(
+                input_file_path(job.id), output_path, classified, profile.rules
+            )
+            issues_found = validate_document(output_path, classified, profile.rules)
+
+            session.add(
+                ValidationReport(job_id=job.id, issues_found=issues_found, issues_fixed=changes)
+            )
+            job.status = JobStatus.DONE
+            job.output_file = output_path.name
+            await session.commit()
+        except Exception as exc:  # noqa: BLE001 - any failure here must land the job as FAILED
+            job.status = JobStatus.FAILED
+            job.error_message = str(exc)[:1000]
+            await session.commit()

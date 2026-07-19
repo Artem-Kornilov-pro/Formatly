@@ -11,6 +11,7 @@ from app.models.formatting_profile import FormattingProfile
 from app.models.job import Job, JobStatus
 from app.models.user import User
 from app.schemas.job import JobOut
+from app.worker import process_job as process_job_task
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -79,6 +80,8 @@ async def create_job(
     db.add(job)
     await db.commit()
     await db.refresh(job)
+
+    process_job_task.delay(str(job.id))
 
     return _job_out(job)
 
