@@ -1,6 +1,5 @@
 import io
 import uuid
-from types import SimpleNamespace
 
 from docx import Document
 from sqlalchemy import select
@@ -11,6 +10,7 @@ from app.models.job import Job, JobStatus
 from app.models.user import User
 from app.models.validation_report import ValidationReport
 from app.pipeline.run import process_job
+from app.pipeline.schemas import ClassifiedParagraph, ParagraphRole
 from tests.conftest import test_session_maker as make_test_session
 
 RULES = {
@@ -21,18 +21,17 @@ RULES = {
 }
 
 
-class FakeMessages:
-    def __init__(self, tool_input: dict):
-        self._tool_input = tool_input
+class FakeClassifier:
+    def __init__(self, roles: dict[int, ParagraphRole]):
+        self._roles = roles
 
-    def create(self, **kwargs):
-        block = SimpleNamespace(type="tool_use", input=self._tool_input)
-        return SimpleNamespace(content=[block])
-
-
-class FakeAnthropicClient:
-    def __init__(self, tool_input: dict):
-        self.messages = FakeMessages(tool_input)
+    def classify(self, paragraphs) -> list[ClassifiedParagraph]:
+        return [
+            ClassifiedParagraph(
+                index=p.index, text=p.text, role=self._roles.get(p.index, ParagraphRole.BODY)
+            )
+            for p in paragraphs
+        ]
 
 
 def _docx_bytes() -> bytes:
@@ -68,11 +67,9 @@ async def test_process_job_runs_full_pipeline_and_marks_done():
     input_file_path(job.id).parent.mkdir(parents=True, exist_ok=True)
     input_file_path(job.id).write_bytes(_docx_bytes())
 
-    fake_client = FakeAnthropicClient(
-        {"paragraphs": [{"index": 0, "role": "heading_1"}, {"index": 1, "role": "body"}]}
-    )
+    fake_classifier = FakeClassifier({0: ParagraphRole.HEADING_1, 1: ParagraphRole.BODY})
 
-    await process_job(job.id, anthropic_client=fake_client, session_maker=make_test_session)
+    await process_job(job.id, classifier=fake_classifier, session_maker=make_test_session)
 
     async with make_test_session() as session:
         refreshed = await session.get(Job, job.id)
@@ -94,11 +91,7 @@ async def test_process_job_marks_failed_and_records_error_on_exception():
     job = await _create_job()
     # deliberately no input file written, so parsing raises FileNotFoundError
 
-    await process_job(
-        job.id,
-        anthropic_client=FakeAnthropicClient({"paragraphs": []}),
-        session_maker=make_test_session,
-    )
+    await process_job(job.id, classifier=FakeClassifier({}), session_maker=make_test_session)
 
     async with make_test_session() as session:
         refreshed = await session.get(Job, job.id)
@@ -109,8 +102,4 @@ async def test_process_job_marks_failed_and_records_error_on_exception():
 
 async def test_process_job_is_a_noop_for_unknown_job_id():
     # should not raise even though the job doesn't exist
-    await process_job(
-        uuid.uuid4(),
-        anthropic_client=FakeAnthropicClient({"paragraphs": []}),
-        session_maker=make_test_session,
-    )
+    await process_job(uuid.uuid4(), classifier=FakeClassifier({}), session_maker=make_test_session)

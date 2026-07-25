@@ -1,27 +1,24 @@
 import uuid
 from collections.abc import Callable
 
-from anthropic import Anthropic
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.config import get_settings
 from app.core.db import async_session_maker
 from app.core.storage import input_file_path, output_file_path
 from app.models.formatting_profile import FormattingProfile
 from app.models.job import Job, JobStatus
 from app.models.validation_report import ValidationReport
-from app.pipeline.classifier import classify_paragraphs
 from app.pipeline.formatter import apply_formatting
+from app.pipeline.llm import ParagraphClassifier, build_classifier
 from app.pipeline.parser import parse_docx
 from app.pipeline.validator import validate_document
 
 
 async def process_job(
     job_id: uuid.UUID,
-    anthropic_client: Anthropic | None = None,
+    classifier: ParagraphClassifier | None = None,
     session_maker: Callable[[], AsyncSession] | async_sessionmaker | None = None,
 ) -> None:
-    settings = get_settings()
     session_maker = session_maker or async_session_maker
 
     async with session_maker() as session:
@@ -36,8 +33,8 @@ async def process_job(
             profile = await session.get(FormattingProfile, job.profile_id)
             paragraphs = parse_docx(input_file_path(job.id))
 
-            client = anthropic_client or Anthropic(api_key=settings.anthropic_api_key)
-            classified = classify_paragraphs(paragraphs, client)
+            active_classifier = classifier or build_classifier()
+            classified = active_classifier.classify(paragraphs)
 
             output_path = output_file_path(job.id)
             changes = apply_formatting(

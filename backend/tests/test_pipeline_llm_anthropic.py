@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from app.pipeline.classifier import classify_paragraphs
+from app.pipeline.llm.anthropic_provider import AnthropicClassifier
 from app.pipeline.schemas import ParagraphRole, ParsedParagraph
 
 
@@ -20,7 +20,7 @@ class FakeAnthropicClient:
         self.messages = FakeMessages(tool_input)
 
 
-def test_classify_paragraphs_maps_roles_by_index():
+def test_classify_maps_roles_by_index():
     paragraphs = [
         ParsedParagraph(index=0, text="Introduction", style_name="Heading 1"),
         ParsedParagraph(index=2, text="Body text.", style_name="Normal"),
@@ -28,38 +28,43 @@ def test_classify_paragraphs_maps_roles_by_index():
     client = FakeAnthropicClient(
         {"paragraphs": [{"index": 0, "role": "heading_1"}, {"index": 2, "role": "body"}]}
     )
+    classifier = AnthropicClassifier(client, model="claude-haiku-4-5-20251001")
 
-    result = classify_paragraphs(paragraphs, client)
+    result = classifier.classify(paragraphs)
 
     assert result[0].role == ParagraphRole.HEADING_1
     assert result[0].text == "Introduction"
     assert result[1].role == ParagraphRole.BODY
 
 
-def test_classify_paragraphs_defaults_missing_index_to_body():
+def test_classify_defaults_missing_index_to_body():
     paragraphs = [ParsedParagraph(index=5, text="Orphan paragraph", style_name="Normal")]
     client = FakeAnthropicClient({"paragraphs": []})  # model omitted this index
+    classifier = AnthropicClassifier(client, model="claude-haiku-4-5-20251001")
 
-    result = classify_paragraphs(paragraphs, client)
+    result = classifier.classify(paragraphs)
 
     assert result[0].role == ParagraphRole.BODY
 
 
-def test_classify_paragraphs_returns_empty_list_without_calling_the_client():
+def test_classify_returns_empty_list_without_calling_the_client():
     client = FakeAnthropicClient({"paragraphs": []})
+    classifier = AnthropicClassifier(client, model="claude-haiku-4-5-20251001")
 
-    result = classify_paragraphs([], client)
+    result = classifier.classify([])
 
     assert result == []
     assert client.messages.last_call is None
 
 
-def test_classify_paragraphs_sends_tool_choice_and_paragraph_listing():
+def test_classify_sends_tool_choice_and_paragraph_listing():
     paragraphs = [ParsedParagraph(index=0, text="Hello", style_name="Normal")]
     client = FakeAnthropicClient({"paragraphs": [{"index": 0, "role": "body"}]})
+    classifier = AnthropicClassifier(client, model="claude-haiku-4-5-20251001")
 
-    classify_paragraphs(paragraphs, client)
+    classifier.classify(paragraphs)
 
     call = client.messages.last_call
+    assert call["model"] == "claude-haiku-4-5-20251001"
     assert call["tool_choice"] == {"type": "tool", "name": "classify_paragraphs"}
     assert "0. [Normal] Hello" in call["messages"][0]["content"]
