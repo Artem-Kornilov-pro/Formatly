@@ -39,6 +39,13 @@ include = ["app*"]
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.lint]
+# Explicit allowlist rather than trusting ruff's implicit default, which has
+# changed between versions and silently started flagging things like
+# FastAPI's idiomatic Depends()-as-default pattern (bugbear B008) and source
+# files without a shebang (flake8-executable EXE002).
+select = ["E4", "E7", "E9", "F", "I", "UP"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

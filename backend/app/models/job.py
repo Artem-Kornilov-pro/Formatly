@@ -10,7 +10,7 @@ from sqlalchemy.sql import func
 from app.core.db import Base
 
 
-class JobStatus(str, enum.Enum):
+class JobStatus(enum.StrEnum):
     PENDING = "pending"
     PROCESSING = "processing"
     DONE = "done"
