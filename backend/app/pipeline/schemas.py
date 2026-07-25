@@ -3,7 +3,7 @@ import enum
 from pydantic import BaseModel
 
 
-class ParagraphRole(str, enum.Enum):
+class ParagraphRole(enum.StrEnum):
     TITLE = "title"
     HEADING_1 = "heading_1"
     HEADING_2 = "heading_2"
