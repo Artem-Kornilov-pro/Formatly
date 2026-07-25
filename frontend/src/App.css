@@ -1,41 +1,175 @@
-.app {
-  max-width: 32rem;
-  margin: 4rem auto;
-  padding: 0 1.5rem;
+:is(button, input) {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  background: light-dark(#111, #f4f4f5);
+  color: light-dark(#fff, #111);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* --- Auth pages --- */
+
+.auth-page {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 1.5rem;
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 22rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-form h1 {
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem;
   text-align: center;
 }
 
-.app h1 {
-  font-size: 2.5rem;
-  letter-spacing: -0.03em;
-  margin-bottom: 0.5rem;
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: light-dark(#444, #d4d4d8);
 }
 
-.tagline {
+.auth-form input {
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.4rem;
+  border: 1px solid light-dark(#d4d4d8, #3f3f46);
+  background: light-dark(#fff, #18181b);
+  color: inherit;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 0.9rem;
   color: light-dark(#555, #a1a1aa);
-  line-height: 1.5;
+}
+
+.form-error {
+  background: light-dark(#fdecea, #3a1a17);
+  color: light-dark(#b3261e, #f87171);
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* --- Dashboard --- */
+
+.dashboard {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+  font-size: 1.75rem;
+  margin: 0;
+}
+
+.dashboard-account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: light-dark(#555, #a1a1aa);
+}
+
+.upload-section {
+  margin-bottom: 2.5rem;
+}
+
+.upload-button {
+  display: inline-block;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  background: light-dark(#111, #f4f4f5);
+  color: light-dark(#fff, #111);
+}
+
+.jobs-empty {
+  color: light-dark(#666, #a1a1aa);
+}
+
+.job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.job-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid light-dark(#e4e4e7, #27272a);
+  border-radius: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.job-name {
+  flex: 1;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.job-error {
+  flex-basis: 100%;
+  font-size: 0.85rem;
+  color: light-dark(#b3261e, #f87171);
 }
 
 .status {
   display: inline-block;
-  margin-top: 2rem;
-  padding: 0.25rem 0.75rem;
+  padding: 0.2rem 0.65rem;
   border-radius: 999px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
-.status--checking {
+.status--pending {
   background: light-dark(#f0f0f0, #27272a);
   color: light-dark(#666, #a1a1aa);
 }
 
-.status--online {
+.status--processing {
+  background: light-dark(#eef2ff, #1e2251);
+  color: light-dark(#4338ca, #a5b4fc);
+}
+
+.status--done {
   background: light-dark(#e6f7ec, #123522);
   color: light-dark(#1a7f4b, #4ade80);
 }
 
-.status--offline {
+.status--failed {
   background: light-dark(#fdecea, #3a1a17);
   color: light-dark(#b3261e, #f87171);
 }

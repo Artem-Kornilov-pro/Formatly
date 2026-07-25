@@ -1,27 +1,20 @@
-import { useEffect, useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
-
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-
-type BackendStatus = 'checking' | 'online' | 'offline'
+import { ProtectedRoute } from './auth/ProtectedRoute'
+import { DashboardPage } from './pages/DashboardPage'
+import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
 
 function App() {
-  const [status, setStatus] = useState<BackendStatus>('checking')
-
-  useEffect(() => {
-    fetch(`${API_URL}/health`)
-      .then((res) => setStatus(res.ok ? 'online' : 'offline'))
-      .catch(() => setStatus('offline'))
-  }, [])
-
   return (
-    <main className="app">
-      <h1>Formatly</h1>
-      <p className="tagline">
-        Turn a raw .docx into a document that matches your style guide — automatically.
-      </p>
-      <p className={`status status--${status}`}>Backend: {status}</p>
-    </main>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<DashboardPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 
