@@ -1,13 +1,23 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
+import { beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
+import { AuthProvider } from './auth/AuthContext'
 
 describe('App', () => {
-  it('renders the Formatly heading', () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('no backend in tests'))))
+  beforeEach(() => {
+    localStorage.clear()
+  })
 
-    render(<App />)
+  it('redirects an unauthenticated visitor from / to the login page', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
 
-    expect(screen.getByRole('heading', { name: 'Formatly' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument()
   })
 })
