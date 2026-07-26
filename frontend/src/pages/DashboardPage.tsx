@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { createJob, downloadJob, getJobReport, listJobs } from '../api/jobs'
 import { useAuth } from '../auth/AuthContext'
 import type { Job, ValidationReport } from '../api/types'
@@ -84,6 +85,7 @@ export function DashboardPage() {
         <h1>Formatly</h1>
         <div className="dashboard-account">
           <span>{user?.email}</span>
+          <Link to="/settings">Settings</Link>
           <button type="button" onClick={() => void logout()}>
             Log out
           </button>
