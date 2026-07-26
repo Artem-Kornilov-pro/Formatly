@@ -3,8 +3,10 @@ import uuid
 
 from docx import Document
 from httpx import AsyncClient
+from sqlalchemy import select
 
 from app.core.storage import output_file_path
+from app.models.formatting_profile import FormattingProfile
 from app.models.job import Job, JobStatus
 from app.models.validation_report import ValidationReport
 from tests.conftest import test_session_maker as make_test_session
@@ -75,6 +77,43 @@ async def test_create_job_rejects_unknown_profile(client: AsyncClient, system_pr
     )
 
     assert response.status_code == 404
+
+
+async def test_create_job_rejects_another_users_private_profile(
+    client: AsyncClient, system_profile_id: str
+):
+    headers_a = await _authed_headers(client, "alice@example.com")
+    headers_b = await _authed_headers(client, "bob@example.com")
+
+    await client.put("/profiles/me", json={"font_family": "Georgia"}, headers=headers_a)
+    alice_id = (await client.get("/auth/me", headers=headers_a)).json()["id"]
+
+    async with make_test_session() as session:
+        alice_profile = await session.scalar(
+            select(FormattingProfile).where(FormattingProfile.owner_id == uuid.UUID(alice_id))
+        )
+    assert alice_profile is not None
+
+    response = await client.post(
+        "/jobs",
+        files=_upload_files(),
+        data={"profile_id": str(alice_profile.id)},
+        headers=headers_b,
+    )
+
+    assert response.status_code == 404
+
+
+async def test_create_job_uses_the_users_own_saved_profile_by_default(
+    client: AsyncClient, system_profile_id: str
+):
+    headers = await _authed_headers(client, "student@example.com")
+    await client.put("/profiles/me", json={"font_family": "Georgia"}, headers=headers)
+
+    response = await client.post("/jobs", files=_upload_files(), headers=headers)
+
+    assert response.status_code == 201
+    assert response.json()["profile_id"] != system_profile_id
 
 
 async def test_list_jobs_returns_only_current_users_jobs(

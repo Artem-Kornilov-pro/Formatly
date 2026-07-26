@@ -15,6 +15,7 @@ from app.models.user import User
 from app.models.validation_report import ValidationReport
 from app.schemas.job import JobOut
 from app.schemas.validation_report import ValidationReportOut
+from app.services.profiles import resolve_default_profile
 from app.worker import process_job as process_job_task
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -36,20 +37,17 @@ def _job_out(job: Job) -> JobOut:
 
 
 async def _resolve_profile(
-    profile_id: uuid.UUID | None, db: AsyncSession
+    profile_id: uuid.UUID | None, user: User, db: AsyncSession
 ) -> FormattingProfile:
     if profile_id is not None:
         profile = await db.get(FormattingProfile, profile_id)
-        if profile is None:
+        # system profiles (owner_id is None) are usable by anyone; a
+        # personal profile is only usable by its own owner
+        if profile is None or (profile.owner_id is not None and profile.owner_id != user.id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Formatting profile not found")
         return profile
 
-    profile = await db.scalar(
-        select(FormattingProfile)
-        .where(FormattingProfile.owner_id.is_(None))
-        .order_by(FormattingProfile.created_at)
-        .limit(1)
-    )
+    profile = await resolve_default_profile(user, db)
     if profile is None:
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR, "No default formatting profile configured"
@@ -69,7 +67,7 @@ async def create_job(
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only .docx files are supported")
 
-    profile = await _resolve_profile(profile_id, db)
+    profile = await _resolve_profile(profile_id, user, db)
 
     job_id = uuid.uuid4()
     await save_input_file(job_id, file)

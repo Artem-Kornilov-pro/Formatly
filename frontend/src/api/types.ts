@@ -28,3 +28,27 @@ export interface ValidationReport {
   issues_fixed: string[]
   created_at: string
 }
+
+export interface MarginsMm {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}
+
+export type ParagraphAlignment = 'left' | 'center' | 'right' | 'justify'
+
+export interface FormattingRules {
+  font_family: string
+  font_size_pt: number
+  line_spacing: number
+  margins_mm: MarginsMm
+  bold_headings: boolean
+  italic_headings: boolean
+  center_headings: boolean
+  heading_size_bump_pt: number
+  page_break_before_heading_1: boolean
+  paragraph_alignment: ParagraphAlignment
+  paragraph_indent_enabled: boolean
+  paragraph_indent_mm: number
+}

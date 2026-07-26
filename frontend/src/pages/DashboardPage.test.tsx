@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as jobsApi from '../api/jobs'
 import type { Job } from '../api/types'
@@ -31,7 +32,11 @@ describe('DashboardPage', () => {
   })
 
   it('shows the job list with a status badge', async () => {
-    render(<DashboardPage />)
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    )
 
     expect(await screen.findByText('thesis.docx')).toBeInTheDocument()
     expect(screen.getByText('done')).toBeInTheDocument()
@@ -46,7 +51,11 @@ describe('DashboardPage', () => {
       created_at: '2026-01-01T00:00:00Z',
     })
 
-    render(<DashboardPage />)
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    )
 
     fireEvent.click(await screen.findByRole('button', { name: 'View report' }))
 
@@ -64,7 +73,11 @@ describe('DashboardPage', () => {
       created_at: '2026-01-01T00:00:00Z',
     })
 
-    render(<DashboardPage />)
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    )
 
     fireEvent.click(await screen.findByRole('button', { name: 'View report' }))
     expect(await screen.findByText('left margin is 25mm, expected 30mm')).toBeInTheDocument()
