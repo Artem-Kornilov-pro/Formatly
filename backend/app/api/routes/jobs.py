@@ -12,7 +12,9 @@ from app.core.storage import output_file_path, save_input_file
 from app.models.formatting_profile import FormattingProfile
 from app.models.job import Job, JobStatus
 from app.models.user import User
+from app.models.validation_report import ValidationReport
 from app.schemas.job import JobOut
+from app.schemas.validation_report import ValidationReportOut
 from app.worker import process_job as process_job_task
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -132,3 +134,31 @@ async def download_job_output(
     download_name = f"{Path(job.input_file).stem}_formatted.docx"
 
     return FileResponse(path, media_type=DOCX_CONTENT_TYPE, filename=download_name)
+
+
+@router.get("/{job_id}/report", response_model=ValidationReportOut)
+async def get_job_report(
+    job_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ValidationReportOut:
+    job = await db.get(Job, job_id)
+    if job is None or job.user_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found")
+
+    if job.status != JobStatus.DONE:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Job output is not ready yet")
+
+    report = await db.scalar(
+        select(ValidationReport).where(ValidationReport.job_id == job.id)
+    )
+    if report is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found")
+
+    return ValidationReportOut(
+        id=str(report.id),
+        job_id=str(report.job_id),
+        issues_found=report.issues_found,
+        issues_fixed=report.issues_fixed,
+        created_at=report.created_at,
+    )
