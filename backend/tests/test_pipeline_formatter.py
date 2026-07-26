@@ -3,12 +3,13 @@ from pathlib import Path
 import pytest
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
 
 from app.pipeline.formatter import apply_formatting
 from app.pipeline.rules import FormattingRules
 from app.pipeline.schemas import ClassifiedParagraph, ParagraphRole
 
-RULES = FormattingRules()
+RULES = FormattingRules(generate_toc=False)
 
 
 def _build_input(tmp_path: Path) -> Path:
@@ -93,12 +94,22 @@ def test_center_headings_toggle(tmp_path: Path):
     classified = [ClassifiedParagraph(index=0, text="Introduction", role=ParagraphRole.HEADING_1)]
 
     centered_path = tmp_path / "centered.docx"
-    apply_formatting(input_path, centered_path, classified, FormattingRules(center_headings=True))
+    apply_formatting(
+        input_path,
+        centered_path,
+        classified,
+        FormattingRules(center_headings=True, generate_toc=False),
+    )
     centered = Document(str(centered_path)).paragraphs[0]
     assert centered.paragraph_format.alignment == WD_ALIGN_PARAGRAPH.CENTER
 
     left_path = tmp_path / "left.docx"
-    apply_formatting(input_path, left_path, classified, FormattingRules(center_headings=False))
+    apply_formatting(
+        input_path,
+        left_path,
+        classified,
+        FormattingRules(center_headings=False, generate_toc=False),
+    )
     left = Document(str(left_path)).paragraphs[0]
     assert left.paragraph_format.alignment == WD_ALIGN_PARAGRAPH.LEFT
 
@@ -112,7 +123,7 @@ def test_bold_and_italic_heading_toggles(tmp_path: Path):
         input_path,
         output_path,
         classified,
-        FormattingRules(bold_headings=False, italic_headings=True),
+        FormattingRules(bold_headings=False, italic_headings=True, generate_toc=False),
     )
 
     run = Document(str(output_path)).paragraphs[0].runs[0]
@@ -139,7 +150,7 @@ def test_heading_size_bump_scales_down_by_level(tmp_path: Path):
         input_path,
         output_path,
         classified,
-        FormattingRules(font_size_pt=14, heading_size_bump_pt=4),
+        FormattingRules(font_size_pt=14, heading_size_bump_pt=4, generate_toc=False),
     )
 
     result = Document(str(output_path))
@@ -154,7 +165,10 @@ def test_page_break_before_heading_1_toggle(tmp_path: Path):
     classified = [ClassifiedParagraph(index=0, text="Introduction", role=ParagraphRole.HEADING_1)]
 
     apply_formatting(
-        input_path, output_path, classified, FormattingRules(page_break_before_heading_1=True)
+        input_path,
+        output_path,
+        classified,
+        FormattingRules(page_break_before_heading_1=True, generate_toc=False),
     )
 
     heading = Document(str(output_path)).paragraphs[0]
@@ -173,7 +187,7 @@ def test_paragraph_alignment_applies_to_body_not_headings(tmp_path: Path):
         input_path,
         output_path,
         classified,
-        FormattingRules(paragraph_alignment="left", center_headings=True),
+        FormattingRules(paragraph_alignment="left", center_headings=True, generate_toc=False),
     )
 
     result = Document(str(output_path))
@@ -193,7 +207,7 @@ def test_paragraph_indent_toggle(tmp_path: Path):
         input_path,
         indented_path,
         classified,
-        FormattingRules(paragraph_indent_enabled=True, paragraph_indent_mm=12.5),
+        FormattingRules(paragraph_indent_enabled=True, paragraph_indent_mm=12.5, generate_toc=False),
     )
     indented_body = Document(str(indented_path)).paragraphs[1]
     # Word stores indents in twips, not EMU - round-tripping through a saved
@@ -206,7 +220,97 @@ def test_paragraph_indent_toggle(tmp_path: Path):
 
     flush_path = tmp_path / "flush.docx"
     apply_formatting(
-        input_path, flush_path, classified, FormattingRules(paragraph_indent_enabled=False)
+        input_path,
+        flush_path,
+        classified,
+        FormattingRules(paragraph_indent_enabled=False, generate_toc=False),
     )
     flush_body = Document(str(flush_path)).paragraphs[1]
     assert flush_body.paragraph_format.first_line_indent.mm == 0
+
+
+def test_generate_toc_inserts_heading_and_field_before_first_paragraph(tmp_path: Path):
+    input_path = _build_input(tmp_path)
+    output_path = tmp_path / "output.docx"
+    classified = [
+        ClassifiedParagraph(index=0, text="Introduction", role=ParagraphRole.HEADING_1),
+        ClassifiedParagraph(index=1, text="Body paragraph in Calibri.", role=ParagraphRole.BODY),
+    ]
+
+    changes = apply_formatting(
+        input_path, output_path, classified, FormattingRules(generate_toc=True)
+    )
+
+    assert any("table of contents" in change for change in changes)
+
+    result = Document(str(output_path))
+    paragraph_texts = [p.text for p in result.paragraphs]
+    assert paragraph_texts[0] == "СОДЕРЖАНИЕ"
+    assert paragraph_texts[2:] == ["Introduction", "Body paragraph in Calibri."]
+
+    field_paragraph = result.paragraphs[1]
+    instr_texts = [instr.text for instr in field_paragraph._p.iter(qn("w:instrText"))]
+    assert any("TOC" in text for text in instr_texts)
+
+    # the paragraph right after the TOC starts a new page
+    assert result.paragraphs[2].paragraph_format.page_break_before is True
+
+    update_fields = result.settings.element.find(qn("w:updateFields"))
+    assert update_fields is not None
+    assert update_fields.get(qn("w:val")) == "true"
+
+
+def test_generate_toc_inserts_after_title_when_present(tmp_path: Path):
+    document = Document()
+    document.add_paragraph("Курсовая работа")
+    document.add_heading("Introduction", level=1)
+    document.add_paragraph("Body paragraph.")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [
+        ClassifiedParagraph(index=0, text="Курсовая работа", role=ParagraphRole.TITLE),
+        ClassifiedParagraph(index=1, text="Introduction", role=ParagraphRole.HEADING_1),
+        ClassifiedParagraph(index=2, text="Body paragraph.", role=ParagraphRole.BODY),
+    ]
+
+    apply_formatting(input_path, output_path, classified, FormattingRules(generate_toc=True))
+
+    result = Document(str(output_path))
+    assert [p.text for p in result.paragraphs][:2] == ["Курсовая работа", "СОДЕРЖАНИЕ"]
+    assert result.paragraphs[3].text == "Introduction"
+    assert result.paragraphs[3].paragraph_format.page_break_before is True
+
+
+def test_generate_toc_skipped_when_disabled(tmp_path: Path):
+    input_path = _build_input(tmp_path)
+    output_path = tmp_path / "output.docx"
+    classified = [ClassifiedParagraph(index=0, text="Introduction", role=ParagraphRole.HEADING_1)]
+
+    changes = apply_formatting(
+        input_path, output_path, classified, FormattingRules(generate_toc=False)
+    )
+
+    assert not any("table of contents" in change for change in changes)
+    result = Document(str(output_path))
+    assert [p.text for p in result.paragraphs] == ["Introduction", "Body paragraph in Calibri."]
+
+
+def test_generate_toc_skipped_when_no_headings(tmp_path: Path):
+    document = Document()
+    document.add_paragraph("Just a body paragraph.")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [
+        ClassifiedParagraph(index=0, text="Just a body paragraph.", role=ParagraphRole.BODY)
+    ]
+    changes = apply_formatting(
+        input_path, output_path, classified, FormattingRules(generate_toc=True)
+    )
+
+    assert not any("table of contents" in change for change in changes)
+    result = Document(str(output_path))
+    assert [p.text for p in result.paragraphs] == ["Just a body paragraph."]

@@ -35,3 +35,5 @@ class FormattingRules(BaseModel):
     paragraph_alignment: Alignment = "justify"
     paragraph_indent_enabled: bool = True
     paragraph_indent_mm: float = 12.5
+
+    generate_toc: bool = True

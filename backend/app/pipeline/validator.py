@@ -2,9 +2,10 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
 
 from app.pipeline.rules import FormattingRules
-from app.pipeline.schemas import ClassifiedParagraph, ParagraphRole
+from app.pipeline.schemas import TOC_HEADING_TEXT, ClassifiedParagraph, ParagraphRole
 
 _ALIGNMENTS = {
     "left": WD_ALIGN_PARAGRAPH.LEFT,
@@ -23,6 +24,32 @@ _MM_TOLERANCE = 0.5
 
 def _mm_mismatch(actual: float, expected: float) -> bool:
     return abs(actual - expected) > _MM_TOLERANCE
+
+
+def _is_toc_field_paragraph(paragraph) -> bool:
+    return any(
+        instr.text and "TOC" in instr.text for instr in paragraph._p.iter(qn("w:instrText"))
+    )
+
+
+def _synthetic_toc_paragraph_ids(paragraphs: list) -> set[int]:
+    """id()s of the "СОДЕРЖАНИЕ" heading + TOC field paragraphs the formatter
+    adds, so validation can skip them and keep `classified`'s indices aligned
+    with the rest of the (unshifted) original paragraphs.
+
+    A paragraph is only treated as the synthetic heading when it immediately
+    precedes a recognized TOC field paragraph - matching exactly how the
+    formatter inserts the pair - so a user's own paragraph that happens to
+    read "СОДЕРЖАНИЕ" isn't misidentified.
+    """
+    synthetic: set[int] = set()
+    for i, paragraph in enumerate(paragraphs):
+        if not _is_toc_field_paragraph(paragraph):
+            continue
+        synthetic.add(id(paragraph._p))
+        if i > 0 and paragraphs[i - 1].text == TOC_HEADING_TEXT:
+            synthetic.add(id(paragraphs[i - 1]._p))
+    return synthetic
 
 
 def validate_document(
@@ -46,7 +73,16 @@ def validate_document(
     expected_alignment = _ALIGNMENTS[rules.paragraph_alignment]
     role_by_index = {paragraph.index: paragraph.role for paragraph in classified}
 
-    for index, paragraph in enumerate(document.paragraphs):
+    paragraphs = document.paragraphs
+    synthetic_ids = _synthetic_toc_paragraph_ids(paragraphs)
+
+    original_index = 0
+    for paragraph in paragraphs:
+        if id(paragraph._p) in synthetic_ids:
+            continue
+        index = original_index
+        original_index += 1
+
         role = role_by_index.get(index, ParagraphRole.BODY)
         if role != ParagraphRole.BODY:
             continue
