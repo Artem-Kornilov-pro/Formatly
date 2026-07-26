@@ -6,6 +6,7 @@ from httpx import AsyncClient
 
 from app.core.storage import output_file_path
 from app.models.job import Job, JobStatus
+from app.models.validation_report import ValidationReport
 from tests.conftest import test_session_maker as make_test_session
 
 DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -121,12 +122,24 @@ async def test_get_job_404_for_unknown_id(client: AsyncClient, system_profile_id
     assert response.status_code == 404
 
 
-async def _mark_job_done(job_id: str, content: bytes) -> None:
+async def _mark_job_done(
+    job_id: str,
+    content: bytes = b"formatted docx bytes",
+    issues_found: list[str] | None = None,
+    issues_fixed: list[str] | None = None,
+) -> None:
     job_uuid = uuid.UUID(job_id)
     async with make_test_session() as session:
         job = await session.get(Job, job_uuid)
         job.status = JobStatus.DONE
         job.output_file = output_file_path(job_uuid).name
+        session.add(
+            ValidationReport(
+                job_id=job_uuid,
+                issues_found=issues_found if issues_found is not None else [],
+                issues_fixed=issues_fixed if issues_fixed is not None else ["applied formatting"],
+            )
+        )
         await session.commit()
 
     path = output_file_path(job_uuid)
@@ -187,3 +200,59 @@ async def test_download_returns_output_file_when_done(
     assert response.content == b"formatted docx bytes"
     assert response.headers["content-type"] == DOCX_CONTENT_TYPE
     assert 'filename="thesis_formatted.docx"' in response.headers["content-disposition"]
+
+
+async def test_get_report_requires_auth(client: AsyncClient, system_profile_id: str):
+    headers = await _authed_headers(client, "student@example.com")
+    created = (await client.post("/jobs", files=_upload_files(), headers=headers)).json()
+
+    response = await client.get(f"/jobs/{created['id']}/report")
+
+    assert response.status_code in (401, 403)
+
+
+async def test_get_report_404_for_unknown_job(client: AsyncClient, system_profile_id: str):
+    headers = await _authed_headers(client, "student@example.com")
+
+    response = await client.get(f"/jobs/{uuid.uuid4()}/report", headers=headers)
+
+    assert response.status_code == 404
+
+
+async def test_get_report_404_for_other_users_job(client: AsyncClient, system_profile_id: str):
+    headers_a = await _authed_headers(client, "alice@example.com")
+    headers_b = await _authed_headers(client, "bob@example.com")
+    created = (await client.post("/jobs", files=_upload_files(), headers=headers_a)).json()
+    await _mark_job_done(created["id"])
+
+    response = await client.get(f"/jobs/{created['id']}/report", headers=headers_b)
+
+    assert response.status_code == 404
+
+
+async def test_get_report_409_when_job_not_done(client: AsyncClient, system_profile_id: str):
+    headers = await _authed_headers(client, "student@example.com")
+    created = (await client.post("/jobs", files=_upload_files(), headers=headers)).json()
+    assert created["status"] == "pending"
+
+    response = await client.get(f"/jobs/{created['id']}/report", headers=headers)
+
+    assert response.status_code == 409
+
+
+async def test_get_report_returns_issues_when_done(client: AsyncClient, system_profile_id: str):
+    headers = await _authed_headers(client, "student@example.com")
+    created = (await client.post("/jobs", files=_upload_files(), headers=headers)).json()
+    await _mark_job_done(
+        created["id"],
+        issues_found=["left margin is 25mm, expected 30mm"],
+        issues_fixed=["set page margins to 20/20/30/15mm (top/bottom/left/right)"],
+    )
+
+    response = await client.get(f"/jobs/{created['id']}/report", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["job_id"] == created["id"]
+    assert body["issues_found"] == ["left margin is 25mm, expected 30mm"]
+    assert body["issues_fixed"] == ["set page margins to 20/20/30/15mm (top/bottom/left/right)"]

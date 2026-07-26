@@ -173,3 +173,33 @@ button:disabled {
   background: light-dark(#fdecea, #3a1a17);
   color: light-dark(#b3261e, #f87171);
 }
+
+.job-report {
+  flex-basis: 100%;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid light-dark(#e4e4e7, #27272a);
+  font-size: 0.9rem;
+}
+
+.job-report-section + .job-report-section {
+  margin-top: 0.75rem;
+}
+
+.job-report-section h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: light-dark(#666, #a1a1aa);
+  margin: 0 0 0.35rem;
+}
+
+.job-report-section ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.job-report-clean {
+  color: light-dark(#1a7f4b, #4ade80);
+  margin: 0;
+}

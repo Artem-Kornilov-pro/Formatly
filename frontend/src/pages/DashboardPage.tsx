@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { createJob, downloadJob, listJobs } from '../api/jobs'
+import { createJob, downloadJob, getJobReport, listJobs } from '../api/jobs'
 import { useAuth } from '../auth/AuthContext'
-import type { Job } from '../api/types'
+import type { Job, ValidationReport } from '../api/types'
 
 const ACTIVE_STATUSES = new Set<Job['status']>(['pending', 'processing'])
 const POLL_INTERVAL_MS = 3000
@@ -11,6 +11,9 @@ export function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
+  const [reports, setReports] = useState<Record<string, ValidationReport>>({})
+  const [reportError, setReportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const refreshJobs = useCallback(async () => {
@@ -57,6 +60,24 @@ export function DashboardPage() {
     }
   }
 
+  async function handleToggleReport(job: Job) {
+    if (expandedJobId === job.id) {
+      setExpandedJobId(null)
+      return
+    }
+
+    setReportError(null)
+    setExpandedJobId(job.id)
+    if (reports[job.id]) return
+
+    try {
+      const report = await getJobReport(job)
+      setReports((prev) => ({ ...prev, [job.id]: report }))
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'Failed to load report')
+    }
+  }
+
   return (
     <div className="dashboard">
       <header className="dashboard-header">
@@ -90,20 +111,62 @@ export function DashboardPage() {
           <p className="jobs-empty">No jobs yet — upload a document to get started.</p>
         ) : (
           <ul className="job-list">
-            {jobs.map((job) => (
-              <li key={job.id} className="job-row">
-                <span className="job-name">{job.input_file}</span>
-                <span className={`status status--${job.status}`}>{job.status}</span>
-                {job.status === 'done' && (
-                  <button type="button" onClick={() => void handleDownload(job)}>
-                    Download
-                  </button>
-                )}
-                {job.status === 'failed' && job.error_message && (
-                  <span className="job-error">{job.error_message}</span>
-                )}
-              </li>
-            ))}
+            {jobs.map((job) => {
+              const report = reports[job.id]
+              const isExpanded = expandedJobId === job.id
+
+              return (
+                <li key={job.id} className="job-row">
+                  <span className="job-name">{job.input_file}</span>
+                  <span className={`status status--${job.status}`}>{job.status}</span>
+                  {job.status === 'done' && (
+                    <>
+                      <button type="button" onClick={() => void handleDownload(job)}>
+                        Download
+                      </button>
+                      <button type="button" onClick={() => void handleToggleReport(job)}>
+                        {isExpanded ? 'Hide report' : 'View report'}
+                      </button>
+                    </>
+                  )}
+                  {job.status === 'failed' && job.error_message && (
+                    <span className="job-error">{job.error_message}</span>
+                  )}
+
+                  {isExpanded && (
+                    <div className="job-report">
+                      {reportError && <p className="form-error">{reportError}</p>}
+                      {report && (
+                        <>
+                          {report.issues_fixed.length > 0 && (
+                            <div className="job-report-section">
+                              <h3>Fixed</h3>
+                              <ul>
+                                {report.issues_fixed.map((item) => (
+                                  <li key={item}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {report.issues_found.length > 0 ? (
+                            <div className="job-report-section">
+                              <h3>Remaining issues</h3>
+                              <ul>
+                                {report.issues_found.map((item) => (
+                                  <li key={item}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : (
+                            <p className="job-report-clean">No remaining issues found.</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>

@@ -20,3 +20,11 @@ export interface Job {
   error_message: string | null
   created_at: string
 }
+
+export interface ValidationReport {
+  id: string
+  job_id: string
+  issues_found: string[]
+  issues_fixed: string[]
+  created_at: string
+}
