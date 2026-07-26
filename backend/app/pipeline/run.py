@@ -37,11 +37,20 @@ async def process_job(
             paragraphs = parse_docx(input_file_path(job.id))
 
             active_classifier = classifier or build_classifier()
-            classified = active_classifier.classify(paragraphs)
+            result = active_classifier.classify(paragraphs)
+            classified = result.paragraphs
 
             output_path = output_file_path(job.id)
-            changes = apply_formatting(input_file_path(job.id), output_path, classified, rules)
-            issues_found = validate_document(output_path, classified, rules)
+            changes = apply_formatting(
+                input_file_path(job.id),
+                output_path,
+                classified,
+                rules,
+                generated_title=result.generated_title,
+            )
+            issues_found = validate_document(
+                output_path, classified, rules, generated_title=result.generated_title
+            )
 
             # reprocessing an already-done job would otherwise hit the
             # unique constraint on validation_reports.job_id

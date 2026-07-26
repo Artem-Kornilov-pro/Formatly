@@ -21,6 +21,7 @@ const DEFAULT_RULES: FormattingRules = {
   paragraph_indent_enabled: true,
   paragraph_indent_mm: 12.5,
   generate_toc: true,
+  ai_light_editing_enabled: true,
 }
 
 describe('SettingsPage', () => {
@@ -74,6 +75,24 @@ describe('SettingsPage', () => {
     expect(await screen.findByText('Settings saved.')).toBeInTheDocument()
     expect(profilesApi.updateMyProfile).toHaveBeenCalledWith(
       expect.objectContaining({ generate_toc: false }),
+    )
+  })
+
+  it('saves the AI light editing toggle', async () => {
+    render(
+      <MemoryRouter>
+        <SettingsPage />
+      </MemoryRouter>,
+    )
+
+    const aiCheckbox = await screen.findByLabelText(/let ai add a missing title/i)
+    expect(aiCheckbox).toBeChecked()
+    fireEvent.click(aiCheckbox)
+    fireEvent.submit(aiCheckbox.closest('form')!)
+
+    expect(await screen.findByText('Settings saved.')).toBeInTheDocument()
+    expect(profilesApi.updateMyProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ ai_light_editing_enabled: false }),
     )
   })
 

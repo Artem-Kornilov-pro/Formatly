@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from app.pipeline.schemas import ClassifiedParagraph, ParsedParagraph
+from app.pipeline.schemas import ClassificationResult, ParsedParagraph
 
 
 class ParagraphClassifier(Protocol):
@@ -10,4 +10,4 @@ class ParagraphClassifier(Protocol):
     implements this method - nothing else in the pipeline changes.
     """
 
-    def classify(self, paragraphs: list[ParsedParagraph]) -> list[ClassifiedParagraph]: ...
+    def classify(self, paragraphs: list[ParsedParagraph]) -> ClassificationResult: ...

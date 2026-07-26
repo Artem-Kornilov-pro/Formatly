@@ -314,3 +314,166 @@ def test_generate_toc_skipped_when_no_headings(tmp_path: Path):
     assert not any("table of contents" in change for change in changes)
     result = Document(str(output_path))
     assert [p.text for p in result.paragraphs] == ["Just a body paragraph."]
+
+
+def test_completion_is_appended_to_the_paragraphs_text(tmp_path: Path):
+    document = Document()
+    document.add_paragraph("The results show a clear trend and")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [
+        ClassifiedParagraph(
+            index=0,
+            text="The results show a clear trend and",
+            role=ParagraphRole.BODY,
+            completion="continue to improve over time.",
+        )
+    ]
+    changes = apply_formatting(
+        input_path, output_path, classified, FormattingRules(generate_toc=False)
+    )
+
+    result = Document(str(output_path))
+    assert result.paragraphs[0].text == (
+        "The results show a clear trend and continue to improve over time."
+    )
+    # the appended run must pick up the same formatting as the rest of the paragraph
+    for run in result.paragraphs[0].runs:
+        assert run.font.name == "Times New Roman"
+        assert run.font.size.pt == 14
+    assert any("completed 1 paragraph" in change for change in changes)
+
+
+def test_completion_skipped_when_ai_light_editing_disabled(tmp_path: Path):
+    document = Document()
+    document.add_paragraph("The results show a clear trend and")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [
+        ClassifiedParagraph(
+            index=0,
+            text="The results show a clear trend and",
+            role=ParagraphRole.BODY,
+            completion="continue to improve over time.",
+        )
+    ]
+    changes = apply_formatting(
+        input_path,
+        output_path,
+        classified,
+        FormattingRules(generate_toc=False, ai_light_editing_enabled=False),
+    )
+
+    result = Document(str(output_path))
+    assert result.paragraphs[0].text == "The results show a clear trend and"
+    assert not any("completed" in change for change in changes)
+
+
+def test_generated_title_is_inserted_when_none_classified(tmp_path: Path):
+    document = Document()
+    document.add_heading("Introduction", level=1)
+    document.add_paragraph("Body paragraph.")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [
+        ClassifiedParagraph(index=0, text="Introduction", role=ParagraphRole.HEADING_1),
+        ClassifiedParagraph(index=1, text="Body paragraph.", role=ParagraphRole.BODY),
+    ]
+    changes = apply_formatting(
+        input_path,
+        output_path,
+        classified,
+        FormattingRules(generate_toc=False),
+        generated_title="Курсовая работа",
+    )
+
+    result = Document(str(output_path))
+    assert [p.text for p in result.paragraphs] == [
+        "Курсовая работа",
+        "Introduction",
+        "Body paragraph.",
+    ]
+    title_run = result.paragraphs[0].runs[0]
+    assert title_run.font.bold is True
+    assert result.paragraphs[0].paragraph_format.alignment == WD_ALIGN_PARAGRAPH.CENTER
+    assert any("Курсовая работа" in change for change in changes)
+
+
+def test_generated_title_skipped_when_a_title_already_classified(tmp_path: Path):
+    document = Document()
+    document.add_paragraph("Existing Title")
+    document.add_paragraph("Body paragraph.")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [
+        ClassifiedParagraph(index=0, text="Existing Title", role=ParagraphRole.TITLE),
+        ClassifiedParagraph(index=1, text="Body paragraph.", role=ParagraphRole.BODY),
+    ]
+    changes = apply_formatting(
+        input_path,
+        output_path,
+        classified,
+        FormattingRules(generate_toc=False),
+        generated_title="A different generated title",
+    )
+
+    result = Document(str(output_path))
+    assert [p.text for p in result.paragraphs] == ["Existing Title", "Body paragraph."]
+    assert not any("generated a document title" in change for change in changes)
+
+
+def test_generated_title_skipped_when_ai_light_editing_disabled(tmp_path: Path):
+    document = Document()
+    document.add_paragraph("Body paragraph.")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [ClassifiedParagraph(index=0, text="Body paragraph.", role=ParagraphRole.BODY)]
+    changes = apply_formatting(
+        input_path,
+        output_path,
+        classified,
+        FormattingRules(generate_toc=False, ai_light_editing_enabled=False),
+        generated_title="Курсовая работа",
+    )
+
+    result = Document(str(output_path))
+    assert [p.text for p in result.paragraphs] == ["Body paragraph."]
+    assert not any("generated a document title" in change for change in changes)
+
+
+def test_generated_title_anchors_the_toc_right_after_it(tmp_path: Path):
+    document = Document()
+    document.add_heading("Introduction", level=1)
+    document.add_paragraph("Body paragraph.")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [
+        ClassifiedParagraph(index=0, text="Introduction", role=ParagraphRole.HEADING_1),
+        ClassifiedParagraph(index=1, text="Body paragraph.", role=ParagraphRole.BODY),
+    ]
+    apply_formatting(
+        input_path,
+        output_path,
+        classified,
+        FormattingRules(generate_toc=True),
+        generated_title="Курсовая работа",
+    )
+
+    result = Document(str(output_path))
+    paragraph_texts = [p.text for p in result.paragraphs]
+    assert paragraph_texts[0] == "Курсовая работа"
+    assert paragraph_texts[1] == "СОДЕРЖАНИЕ"
+    assert paragraph_texts[3:] == ["Introduction", "Body paragraph."]
+    assert result.paragraphs[3].paragraph_format.page_break_before is True

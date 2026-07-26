@@ -239,6 +239,18 @@ export function SettingsPage() {
           </label>
         </fieldset>
 
+        <fieldset>
+          <legend>AI assistance</legend>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={rules.ai_light_editing_enabled}
+              onChange={(event) => update('ai_light_editing_enabled', event.target.checked)}
+            />
+            Let AI add a missing title or complete obviously cut-off sentences
+          </label>
+        </fieldset>
+
         <button type="submit" disabled={isSaving}>
           {isSaving ? 'Saving…' : 'Save settings'}
         </button>

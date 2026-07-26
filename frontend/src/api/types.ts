@@ -52,4 +52,5 @@ export interface FormattingRules {
   paragraph_indent_enabled: boolean
   paragraph_indent_mm: number
   generate_toc: boolean
+  ai_light_editing_enabled: boolean
 }

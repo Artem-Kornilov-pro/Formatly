@@ -30,3 +30,28 @@ class ClassifiedParagraph(BaseModel):
     index: int
     text: str
     role: ParagraphRole
+    # Short text to append after this paragraph's existing text when it's
+    # obviously cut off mid-sentence - additive only, never a replacement.
+    completion: str | None = None
+
+
+class ClassificationResult(BaseModel):
+    paragraphs: list[ClassifiedParagraph]
+    # A short document title, only present when none of `paragraphs` was
+    # classified as `title` and the classifier could confidently infer one.
+    generated_title: str | None = None
+
+
+def should_insert_generated_title(
+    classified: list[ClassifiedParagraph], generated_title: str | None
+) -> bool:
+    """Whether apply_formatting/validate_document should treat a generated
+    title as a real, synthetic first paragraph.
+
+    Both formatter and validator derive this independently from the same
+    inputs rather than one telling the other, so they can't drift out of
+    sync about whether a title paragraph was actually inserted.
+    """
+    if not generated_title:
+        return False
+    return not any(paragraph.role == ParagraphRole.TITLE for paragraph in classified)

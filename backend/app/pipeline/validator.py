@@ -5,7 +5,12 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 
 from app.pipeline.rules import FormattingRules
-from app.pipeline.schemas import TOC_HEADING_TEXT, ClassifiedParagraph, ParagraphRole
+from app.pipeline.schemas import (
+    TOC_HEADING_TEXT,
+    ClassifiedParagraph,
+    ParagraphRole,
+    should_insert_generated_title,
+)
 
 _ALIGNMENTS = {
     "left": WD_ALIGN_PARAGRAPH.LEFT,
@@ -53,7 +58,10 @@ def _synthetic_toc_paragraph_ids(paragraphs: list) -> set[int]:
 
 
 def validate_document(
-    output_path: Path, classified: list[ClassifiedParagraph], rules: FormattingRules
+    output_path: Path,
+    classified: list[ClassifiedParagraph],
+    rules: FormattingRules,
+    generated_title: str | None = None,
 ) -> list[str]:
     document = Document(str(output_path))
     issues: list[str] = []
@@ -75,9 +83,14 @@ def validate_document(
 
     paragraphs = document.paragraphs
     synthetic_ids = _synthetic_toc_paragraph_ids(paragraphs)
+    title_was_generated = rules.ai_light_editing_enabled and should_insert_generated_title(
+        classified, generated_title
+    )
 
     original_index = 0
-    for paragraph in paragraphs:
+    for i, paragraph in enumerate(paragraphs):
+        if title_was_generated and i == 0:
+            continue
         if id(paragraph._p) in synthetic_ids:
             continue
         index = original_index

@@ -4,16 +4,24 @@ import re
 import openai
 
 from app.pipeline.llm.prompt import ALLOWED_ROLES, SYSTEM_PROMPT, build_paragraph_listing
-from app.pipeline.schemas import ClassifiedParagraph, ParagraphRole, ParsedParagraph
+from app.pipeline.schemas import (
+    ClassificationResult,
+    ClassifiedParagraph,
+    ParagraphRole,
+    ParsedParagraph,
+)
 
 # Yandex Cloud's OpenAI-compatible `responses` endpoint doesn't offer
 # tool-use/structured output the way Anthropic does, so the schema has to be
 # enforced by instruction + tolerant parsing instead of a constrained schema.
 _INSTRUCTIONS = (
     f"{SYSTEM_PROMPT} Respond with nothing but a single JSON object of the exact "
-    'shape {"paragraphs": [{"index": <int>, "role": "<role>"}, ...]}, where '
-    f"<role> is one of: {', '.join(ALLOWED_ROLES)}. No markdown fences, no "
-    "commentary, no other text before or after the JSON."
+    'shape {"paragraphs": [{"index": <int>, "role": "<role>", "completion": '
+    '"<optional string>"}, ...], "generated_title": "<optional string>"}, where '
+    f"<role> is one of: {', '.join(ALLOWED_ROLES)}. Omit \"completion\" and "
+    '"generated_title" entirely (don\'t include empty strings) when they don\'t '
+    "apply. No markdown fences, no commentary, no other text before or after "
+    "the JSON."
 )
 
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
@@ -30,9 +38,9 @@ class YandexClassifier:
         self._client = client
         self._model_uri = model_uri
 
-    def classify(self, paragraphs: list[ParsedParagraph]) -> list[ClassifiedParagraph]:
+    def classify(self, paragraphs: list[ParsedParagraph]) -> ClassificationResult:
         if not paragraphs:
-            return []
+            return ClassificationResult(paragraphs=[])
 
         response = self._client.responses.create(
             model=self._model_uri,
@@ -43,15 +51,20 @@ class YandexClassifier:
         )
 
         payload = _extract_json(response.output_text)
-        roles_by_index = {
-            entry["index"]: ParagraphRole(entry["role"]) for entry in payload["paragraphs"]
-        }
+        entries_by_index = {entry["index"]: entry for entry in payload["paragraphs"]}
 
-        return [
+        classified = [
             ClassifiedParagraph(
                 index=paragraph.index,
                 text=paragraph.text,
-                role=roles_by_index.get(paragraph.index, ParagraphRole.BODY),
+                role=ParagraphRole(entries_by_index[paragraph.index]["role"])
+                if paragraph.index in entries_by_index
+                else ParagraphRole.BODY,
+                completion=entries_by_index.get(paragraph.index, {}).get("completion") or None,
             )
             for paragraph in paragraphs
         ]
+        return ClassificationResult(
+            paragraphs=classified,
+            generated_title=payload.get("generated_title") or None,
+        )
