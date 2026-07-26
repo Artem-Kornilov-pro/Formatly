@@ -103,3 +103,49 @@ async def test_process_job_marks_failed_and_records_error_on_exception():
 async def test_process_job_is_a_noop_for_unknown_job_id():
     # should not raise even though the job doesn't exist
     await process_job(uuid.uuid4(), classifier=FakeClassifier({}), session_maker=make_test_session)
+
+
+async def test_reprocessing_after_a_failure_clears_the_old_error_message():
+    job = await _create_job()
+    # first attempt fails: no input file written yet
+    await process_job(job.id, classifier=FakeClassifier({}), session_maker=make_test_session)
+
+    async with make_test_session() as session:
+        failed = await session.get(Job, job.id)
+        assert failed.status == JobStatus.FAILED
+        assert failed.error_message
+
+    # fix the underlying problem and retry, same as re-queuing a failed job
+    input_file_path(job.id).parent.mkdir(parents=True, exist_ok=True)
+    input_file_path(job.id).write_bytes(_docx_bytes())
+    fake_classifier = FakeClassifier({0: ParagraphRole.HEADING_1, 1: ParagraphRole.BODY})
+
+    await process_job(job.id, classifier=fake_classifier, session_maker=make_test_session)
+
+    async with make_test_session() as session:
+        refreshed = await session.get(Job, job.id)
+        assert refreshed.status == JobStatus.DONE
+        assert refreshed.error_message is None
+
+
+async def test_reprocessing_an_already_done_job_replaces_its_report():
+    job = await _create_job()
+    input_file_path(job.id).parent.mkdir(parents=True, exist_ok=True)
+    input_file_path(job.id).write_bytes(_docx_bytes())
+    fake_classifier = FakeClassifier({0: ParagraphRole.HEADING_1, 1: ParagraphRole.BODY})
+
+    await process_job(job.id, classifier=fake_classifier, session_maker=make_test_session)
+    # reprocess the same already-done job - must not crash on the unique
+    # constraint on validation_reports.job_id
+    await process_job(job.id, classifier=fake_classifier, session_maker=make_test_session)
+
+    async with make_test_session() as session:
+        refreshed = await session.get(Job, job.id)
+        assert refreshed.status == JobStatus.DONE
+
+        reports = (
+            await session.scalars(
+                select(ValidationReport).where(ValidationReport.job_id == job.id)
+            )
+        ).all()
+        assert len(reports) == 1

@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Callable
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.db import async_session_maker
@@ -42,11 +43,15 @@ async def process_job(
             )
             issues_found = validate_document(output_path, classified, profile.rules)
 
+            # reprocessing an already-done job would otherwise hit the
+            # unique constraint on validation_reports.job_id
+            await session.execute(delete(ValidationReport).where(ValidationReport.job_id == job.id))
             session.add(
                 ValidationReport(job_id=job.id, issues_found=issues_found, issues_fixed=changes)
             )
             job.status = JobStatus.DONE
             job.output_file = output_path.name
+            job.error_message = None
             await session.commit()
         except Exception as exc:  # noqa: BLE001 - any failure here must land the job as FAILED
             job.status = JobStatus.FAILED
