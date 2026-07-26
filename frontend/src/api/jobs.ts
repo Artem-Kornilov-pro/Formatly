@@ -1,5 +1,5 @@
 import { apiFetch, extractErrorMessage } from './client'
-import type { Job } from './types'
+import type { Job, ValidationReport } from './types'
 
 export async function listJobs(): Promise<Job[]> {
   const response = await apiFetch('/jobs')
@@ -43,4 +43,12 @@ export async function downloadJob(job: Job): Promise<void> {
   link.click()
   link.remove()
   URL.revokeObjectURL(url)
+}
+
+export async function getJobReport(job: Job): Promise<ValidationReport> {
+  const response = await apiFetch(`/jobs/${job.id}/report`)
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, 'Failed to load report'))
+  }
+  return response.json()
 }
