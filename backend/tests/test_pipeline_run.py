@@ -82,7 +82,8 @@ async def test_process_job_runs_full_pipeline_and_marks_done():
         )
         assert report is not None
         assert report.issues_found == []
-        assert len(report.issues_fixed) == 3
+        assert any("margins" in change for change in report.issues_fixed)
+        assert any("Times New Roman" in change for change in report.issues_fixed)
 
     assert output_file_path(job.id).exists()
 

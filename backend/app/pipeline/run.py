@@ -12,6 +12,7 @@ from app.models.validation_report import ValidationReport
 from app.pipeline.formatter import apply_formatting
 from app.pipeline.llm import ParagraphClassifier, build_classifier
 from app.pipeline.parser import parse_docx
+from app.pipeline.rules import FormattingRules
 from app.pipeline.validator import validate_document
 
 
@@ -32,16 +33,15 @@ async def process_job(
 
         try:
             profile = await session.get(FormattingProfile, job.profile_id)
+            rules = FormattingRules.model_validate(profile.rules)
             paragraphs = parse_docx(input_file_path(job.id))
 
             active_classifier = classifier or build_classifier()
             classified = active_classifier.classify(paragraphs)
 
             output_path = output_file_path(job.id)
-            changes = apply_formatting(
-                input_file_path(job.id), output_path, classified, profile.rules
-            )
-            issues_found = validate_document(output_path, classified, profile.rules)
+            changes = apply_formatting(input_file_path(job.id), output_path, classified, rules)
+            issues_found = validate_document(output_path, classified, rules)
 
             # reprocessing an already-done job would otherwise hit the
             # unique constraint on validation_reports.job_id
