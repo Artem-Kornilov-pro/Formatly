@@ -20,6 +20,7 @@ const DEFAULT_RULES: FormattingRules = {
   paragraph_alignment: 'justify',
   paragraph_indent_enabled: true,
   paragraph_indent_mm: 12.5,
+  generate_toc: true,
 }
 
 describe('SettingsPage', () => {
@@ -55,6 +56,24 @@ describe('SettingsPage', () => {
     expect(await screen.findByText('Settings saved.')).toBeInTheDocument()
     expect(profilesApi.updateMyProfile).toHaveBeenCalledWith(
       expect.objectContaining({ font_family: 'Arial' }),
+    )
+  })
+
+  it('saves the table of contents toggle', async () => {
+    render(
+      <MemoryRouter>
+        <SettingsPage />
+      </MemoryRouter>,
+    )
+
+    const tocCheckbox = await screen.findByLabelText(/automatic table of contents/i)
+    expect(tocCheckbox).toBeChecked()
+    fireEvent.click(tocCheckbox)
+    fireEvent.submit(tocCheckbox.closest('form')!)
+
+    expect(await screen.findByText('Settings saved.')).toBeInTheDocument()
+    expect(profilesApi.updateMyProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ generate_toc: false }),
     )
   })
 

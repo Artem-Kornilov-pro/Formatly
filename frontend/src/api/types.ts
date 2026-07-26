@@ -51,4 +51,5 @@ export interface FormattingRules {
   paragraph_alignment: ParagraphAlignment
   paragraph_indent_enabled: boolean
   paragraph_indent_mm: number
+  generate_toc: boolean
 }

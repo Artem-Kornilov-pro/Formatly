@@ -2,6 +2,11 @@ import enum
 
 from pydantic import BaseModel
 
+# Shared between formatter.py (which writes this heading) and validator.py
+# (which needs to recognize and skip it, since it's synthetic content the
+# formatter adds rather than part of the original document).
+TOC_HEADING_TEXT = "СОДЕРЖАНИЕ"
+
 
 class ParagraphRole(enum.StrEnum):
     TITLE = "title"

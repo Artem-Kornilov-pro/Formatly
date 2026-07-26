@@ -227,6 +227,18 @@ export function SettingsPage() {
           </label>
         </fieldset>
 
+        <fieldset>
+          <legend>Table of contents</legend>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={rules.generate_toc}
+              onChange={(event) => update('generate_toc', event.target.checked)}
+            />
+            Insert an automatic table of contents ("СОДЕРЖАНИЕ")
+          </label>
+        </fieldset>
+
         <button type="submit" disabled={isSaving}>
           {isSaving ? 'Saving…' : 'Save settings'}
         </button>
