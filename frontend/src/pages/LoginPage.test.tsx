@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as authApi from '../api/auth'
 import { AuthProvider } from '../auth/AuthContext'
+import { ThemeProvider } from '../theme/ThemeContext'
 import { LoginPage } from './LoginPage'
 
 vi.mock('../api/auth')
@@ -22,14 +23,16 @@ describe('LoginPage', () => {
     })
 
     render(
-      <MemoryRouter initialEntries={['/login']}>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<p>Dashboard</p>} />
-          </Routes>
-        </AuthProvider>
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/dashboard" element={<p>Dashboard</p>} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     fireEvent.change(screen.getByLabelText('Email'), {
@@ -48,11 +51,13 @@ describe('LoginPage', () => {
     vi.mocked(authApi.login).mockRejectedValue(new Error('Invalid email or password'))
 
     render(
-      <MemoryRouter initialEntries={['/login']}>
-        <AuthProvider>
-          <LoginPage />
-        </AuthProvider>
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <AuthProvider>
+            <LoginPage />
+          </AuthProvider>
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     fireEvent.change(screen.getByLabelText('Email'), {

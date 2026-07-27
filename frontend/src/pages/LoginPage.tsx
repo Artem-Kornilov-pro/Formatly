@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { SiteHeader } from '../components/SiteHeader'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -16,7 +17,7 @@ export function LoginPage() {
     setIsSubmitting(true)
     try {
       await login(email, password)
-      navigate('/', { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {
@@ -25,37 +26,40 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth-page">
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <h1>Log in</h1>
-        {error && <p className="form-error">{error}</p>}
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            autoComplete="email"
-            required
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </label>
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Logging in…' : 'Log in'}
-        </button>
-        <p className="auth-switch">
-          No account? <Link to="/register">Register</Link>
-        </p>
-      </form>
+    <div>
+      <SiteHeader />
+      <div className="auth-page">
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <h1>Log in</h1>
+          {error && <p className="form-error">{error}</p>}
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Logging in…' : 'Log in'}
+          </button>
+          <p className="auth-switch">
+            No account? <Link to="/register">Register</Link>
+          </p>
+        </form>
+      </div>
     </div>
   )
 }

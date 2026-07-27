@@ -3,19 +3,36 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
 import { AuthProvider } from './auth/AuthContext'
+import { ThemeProvider } from './theme/ThemeContext'
 
 describe('App', () => {
   beforeEach(() => {
     localStorage.clear()
   })
 
-  it('redirects an unauthenticated visitor from / to the login page', async () => {
+  it('shows the public landing page at / for an unauthenticated visitor', async () => {
     render(
-      <MemoryRouter initialEntries={['/']}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>
+      </ThemeProvider>,
+    )
+
+    expect(await screen.findByRole('link', { name: 'Get started' })).toBeInTheDocument()
+  })
+
+  it('redirects an unauthenticated visitor from /dashboard to the login page', async () => {
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument()
