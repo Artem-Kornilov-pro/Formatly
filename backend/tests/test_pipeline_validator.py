@@ -119,6 +119,30 @@ def test_validate_document_skips_indent_check_when_disabled(tmp_path: Path):
     assert issues == []
 
 
+def test_validate_document_stays_aligned_after_a_generated_title_is_inserted(tmp_path: Path):
+    document = Document()
+    document.add_heading("Introduction", level=1)
+    document.add_paragraph("Body paragraph.")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+
+    output_path = tmp_path / "output.docx"
+    classified = [
+        ClassifiedParagraph(index=0, text="Introduction", role=ParagraphRole.HEADING_1),
+        ClassifiedParagraph(index=1, text="Body paragraph.", role=ParagraphRole.BODY),
+    ]
+    rules = FormattingRules(generate_toc=False)
+    apply_formatting(
+        input_path, output_path, classified, rules, generated_title="Курсовая работа"
+    )
+
+    issues = validate_document(
+        output_path, classified, rules, generated_title="Курсовая работа"
+    )
+
+    assert issues == []
+
+
 def test_validate_document_ignores_heading_paragraphs_for_body_checks(tmp_path: Path):
     document = Document()
     paragraph = document.add_heading("Introduction", level=1)

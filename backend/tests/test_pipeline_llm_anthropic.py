@@ -32,9 +32,10 @@ def test_classify_maps_roles_by_index():
 
     result = classifier.classify(paragraphs)
 
-    assert result[0].role == ParagraphRole.HEADING_1
-    assert result[0].text == "Introduction"
-    assert result[1].role == ParagraphRole.BODY
+    assert result.paragraphs[0].role == ParagraphRole.HEADING_1
+    assert result.paragraphs[0].text == "Introduction"
+    assert result.paragraphs[1].role == ParagraphRole.BODY
+    assert result.generated_title is None
 
 
 def test_classify_defaults_missing_index_to_body():
@@ -44,17 +45,51 @@ def test_classify_defaults_missing_index_to_body():
 
     result = classifier.classify(paragraphs)
 
-    assert result[0].role == ParagraphRole.BODY
+    assert result.paragraphs[0].role == ParagraphRole.BODY
 
 
-def test_classify_returns_empty_list_without_calling_the_client():
+def test_classify_returns_empty_result_without_calling_the_client():
     client = FakeAnthropicClient({"paragraphs": []})
     classifier = AnthropicClassifier(client, model="claude-haiku-4-5-20251001")
 
     result = classifier.classify([])
 
-    assert result == []
+    assert result.paragraphs == []
     assert client.messages.last_call is None
+
+
+def test_classify_parses_completion_and_generated_title():
+    paragraphs = [
+        ParsedParagraph(index=0, text="Some cut off sentence and", style_name="Normal"),
+        ParsedParagraph(index=1, text="A complete sentence.", style_name="Normal"),
+    ]
+    client = FakeAnthropicClient(
+        {
+            "paragraphs": [
+                {"index": 0, "role": "body", "completion": "so on."},
+                {"index": 1, "role": "body"},
+            ],
+            "generated_title": "Курсовая работа",
+        }
+    )
+    classifier = AnthropicClassifier(client, model="claude-haiku-4-5-20251001")
+
+    result = classifier.classify(paragraphs)
+
+    assert result.paragraphs[0].completion == "so on."
+    assert result.paragraphs[1].completion is None
+    assert result.generated_title == "Курсовая работа"
+
+
+def test_classify_treats_absent_completion_and_title_as_none():
+    paragraphs = [ParsedParagraph(index=0, text="Hello", style_name="Normal")]
+    client = FakeAnthropicClient({"paragraphs": [{"index": 0, "role": "body"}]})
+    classifier = AnthropicClassifier(client, model="claude-haiku-4-5-20251001")
+
+    result = classifier.classify(paragraphs)
+
+    assert result.paragraphs[0].completion is None
+    assert result.generated_title is None
 
 
 def test_classify_sends_tool_choice_and_paragraph_listing():

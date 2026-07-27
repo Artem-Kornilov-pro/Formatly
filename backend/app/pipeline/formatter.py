@@ -7,7 +7,12 @@ from docx.oxml.ns import qn
 from docx.shared import Mm, Pt
 
 from app.pipeline.rules import FormattingRules
-from app.pipeline.schemas import TOC_HEADING_TEXT, ClassifiedParagraph, ParagraphRole
+from app.pipeline.schemas import (
+    TOC_HEADING_TEXT,
+    ClassifiedParagraph,
+    ParagraphRole,
+    should_insert_generated_title,
+)
 
 _HEADING_ROLES = {ParagraphRole.HEADING_1, ParagraphRole.HEADING_2, ParagraphRole.HEADING_3}
 # heading_size_bump_pt scaled by level: heading 1 gets the full bump, heading
@@ -84,6 +89,7 @@ def apply_formatting(
     output_path: Path,
     classified: list[ClassifiedParagraph],
     rules: FormattingRules,
+    generated_title: str | None = None,
 ) -> list[str]:
     document = Document(str(input_path))
 
@@ -94,6 +100,11 @@ def apply_formatting(
         section.right_margin = Mm(rules.margins_mm.right)
 
     role_by_index = {paragraph.index: paragraph.role for paragraph in classified}
+    completion_by_index = (
+        {paragraph.index: paragraph.completion for paragraph in classified if paragraph.completion}
+        if rules.ai_light_editing_enabled
+        else {}
+    )
     body_alignment = _ALIGNMENTS[rules.paragraph_alignment]
 
     for index, paragraph in enumerate(document.paragraphs):
@@ -125,18 +136,57 @@ def apply_formatting(
                 Mm(rules.paragraph_indent_mm) if rules.paragraph_indent_enabled else Mm(0)
             )
 
+        completion = completion_by_index.get(index)
+        if completion:
+            _append_completion(paragraph, completion)
+
         for run in paragraph.runs:
             _set_run_font(run, rules.font_family)
             run.font.size = Pt(size_pt)
             run.font.bold = is_heading and rules.bold_headings
             run.font.italic = is_heading and rules.italic_headings
 
+    inserted_title = (
+        generated_title
+        if rules.ai_light_editing_enabled and should_insert_generated_title(classified, generated_title)
+        else None
+    )
+    if inserted_title:
+        _insert_generated_title_paragraph(document, rules, inserted_title)
+        # every paragraph that existed before the title was spliced in front
+        # of it just shifted down by one position
+        role_by_index = {index + 1: role for index, role in role_by_index.items()}
+        role_by_index[0] = ParagraphRole.TITLE
+
     toc_inserted = rules.generate_toc and _insert_table_of_contents(document, role_by_index, rules)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     document.save(str(output_path))
 
-    return _describe_changes(rules, toc_inserted)
+    return _describe_changes(rules, toc_inserted, inserted_title, len(completion_by_index))
+
+
+def _append_completion(paragraph, completion: str) -> None:
+    separator = "" if not paragraph.text or paragraph.text[-1].isspace() else " "
+    paragraph.add_run(separator + completion)
+
+
+def _insert_generated_title_paragraph(
+    document: Document, rules: FormattingRules, generated_title: str
+) -> None:
+    existing_paragraphs = document.paragraphs
+    paragraph = document.add_paragraph()
+    run = paragraph.add_run(generated_title)
+    _set_run_font(run, rules.font_family)
+    run.font.size = Pt(rules.font_size_pt + rules.heading_size_bump_pt)
+    run.font.bold = rules.bold_headings
+    run.font.italic = rules.italic_headings
+    paragraph.paragraph_format.alignment = (
+        WD_ALIGN_PARAGRAPH.CENTER if rules.center_headings else WD_ALIGN_PARAGRAPH.LEFT
+    )
+    paragraph.paragraph_format.first_line_indent = Mm(0)
+    if existing_paragraphs:
+        existing_paragraphs[0]._p.addprevious(paragraph._p)
 
 
 def _set_outline_level(paragraph, level: int) -> None:
@@ -232,7 +282,12 @@ def _insert_table_of_contents(
     return True
 
 
-def _describe_changes(rules: FormattingRules, toc_inserted: bool) -> list[str]:
+def _describe_changes(
+    rules: FormattingRules,
+    toc_inserted: bool,
+    inserted_title: str | None,
+    completions_applied: int,
+) -> list[str]:
     changes = [
         f"set page margins to {rules.margins_mm.top}/{rules.margins_mm.bottom}/"
         f"{rules.margins_mm.left}/{rules.margins_mm.right}mm (top/bottom/left/right)",
@@ -265,6 +320,14 @@ def _describe_changes(rules: FormattingRules, toc_inserted: bool) -> list[str]:
         changes.append(
             f'inserted an automatic table of contents ("{TOC_HEADING_TEXT}") that Word '
             "regenerates when the document is opened, starting the main content on a new page"
+        )
+
+    if inserted_title:
+        changes.append(f'generated a document title ("{inserted_title}") since none was found')
+
+    if completions_applied:
+        changes.append(
+            f"completed {completions_applied} paragraph(s) that looked cut off mid-sentence"
         )
 
     return changes

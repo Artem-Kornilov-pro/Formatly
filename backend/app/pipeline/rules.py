@@ -37,3 +37,8 @@ class FormattingRules(BaseModel):
     paragraph_indent_mm: float = 12.5
 
     generate_toc: bool = True
+
+    # Gates whether the formatter applies what the classifier proposes for
+    # a missing title / obviously truncated sentences - the classifier
+    # itself always attempts these and stays rules-agnostic.
+    ai_light_editing_enabled: bool = True

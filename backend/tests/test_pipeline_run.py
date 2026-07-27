@@ -10,7 +10,7 @@ from app.models.job import Job, JobStatus
 from app.models.user import User
 from app.models.validation_report import ValidationReport
 from app.pipeline.run import process_job
-from app.pipeline.schemas import ClassifiedParagraph, ParagraphRole
+from app.pipeline.schemas import ClassificationResult, ClassifiedParagraph, ParagraphRole
 from tests.conftest import test_session_maker as make_test_session
 
 RULES = {
@@ -22,16 +22,18 @@ RULES = {
 
 
 class FakeClassifier:
-    def __init__(self, roles: dict[int, ParagraphRole]):
+    def __init__(self, roles: dict[int, ParagraphRole], generated_title: str | None = None):
         self._roles = roles
+        self._generated_title = generated_title
 
-    def classify(self, paragraphs) -> list[ClassifiedParagraph]:
-        return [
+    def classify(self, paragraphs) -> ClassificationResult:
+        classified = [
             ClassifiedParagraph(
                 index=p.index, text=p.text, role=self._roles.get(p.index, ParagraphRole.BODY)
             )
             for p in paragraphs
         ]
+        return ClassificationResult(paragraphs=classified, generated_title=self._generated_title)
 
 
 def _docx_bytes() -> bytes:
@@ -86,6 +88,33 @@ async def test_process_job_runs_full_pipeline_and_marks_done():
         assert any("Times New Roman" in change for change in report.issues_fixed)
 
     assert output_file_path(job.id).exists()
+
+
+async def test_process_job_applies_a_generated_title_without_false_validation_issues():
+    job = await _create_job(rules={**RULES, "generate_toc": False})
+    input_file_path(job.id).parent.mkdir(parents=True, exist_ok=True)
+    input_file_path(job.id).write_bytes(_docx_bytes())
+
+    fake_classifier = FakeClassifier(
+        {0: ParagraphRole.HEADING_1, 1: ParagraphRole.BODY},
+        generated_title="Курсовая работа",
+    )
+
+    await process_job(job.id, classifier=fake_classifier, session_maker=make_test_session)
+
+    async with make_test_session() as session:
+        refreshed = await session.get(Job, job.id)
+        assert refreshed.status == JobStatus.DONE
+
+        report = await session.scalar(
+            select(ValidationReport).where(ValidationReport.job_id == job.id)
+        )
+        assert report.issues_found == []
+        assert any("Курсовая работа" in change for change in report.issues_fixed)
+
+    result_document = Document(str(output_file_path(job.id)))
+    assert result_document.paragraphs[0].text == "Курсовая работа"
+    assert result_document.paragraphs[1].text == "Introduction"
 
 
 async def test_process_job_marks_failed_and_records_error_on_exception():

@@ -1,7 +1,12 @@
 from anthropic import Anthropic
 
 from app.pipeline.llm.prompt import ALLOWED_ROLES, SYSTEM_PROMPT, build_paragraph_listing
-from app.pipeline.schemas import ClassifiedParagraph, ParagraphRole, ParsedParagraph
+from app.pipeline.schemas import (
+    ClassificationResult,
+    ClassifiedParagraph,
+    ParagraphRole,
+    ParsedParagraph,
+)
 
 _TOOL = {
     "name": "classify_paragraphs",
@@ -16,10 +21,25 @@ _TOOL = {
                     "properties": {
                         "index": {"type": "integer"},
                         "role": {"type": "string", "enum": ALLOWED_ROLES},
+                        "completion": {
+                            "type": "string",
+                            "description": (
+                                "Short text to append when this paragraph is obviously "
+                                "cut off mid-sentence. Omit entirely otherwise."
+                            ),
+                        },
                     },
                     "required": ["index", "role"],
                 },
-            }
+            },
+            "generated_title": {
+                "type": "string",
+                "description": (
+                    "A short document title, only if none of the paragraphs were "
+                    "classified as 'title' and one can be confidently inferred. Omit "
+                    "entirely otherwise."
+                ),
+            },
         },
         "required": ["paragraphs"],
     },
@@ -31,9 +51,9 @@ class AnthropicClassifier:
         self._client = client
         self._model = model
 
-    def classify(self, paragraphs: list[ParsedParagraph]) -> list[ClassifiedParagraph]:
+    def classify(self, paragraphs: list[ParsedParagraph]) -> ClassificationResult:
         if not paragraphs:
-            return []
+            return ClassificationResult(paragraphs=[])
 
         response = self._client.messages.create(
             model=self._model,
@@ -45,15 +65,20 @@ class AnthropicClassifier:
         )
 
         tool_use = next(block for block in response.content if block.type == "tool_use")
-        roles_by_index = {
-            entry["index"]: ParagraphRole(entry["role"]) for entry in tool_use.input["paragraphs"]
-        }
+        entries_by_index = {entry["index"]: entry for entry in tool_use.input["paragraphs"]}
 
-        return [
+        classified = [
             ClassifiedParagraph(
                 index=paragraph.index,
                 text=paragraph.text,
-                role=roles_by_index.get(paragraph.index, ParagraphRole.BODY),
+                role=ParagraphRole(entries_by_index[paragraph.index]["role"])
+                if paragraph.index in entries_by_index
+                else ParagraphRole.BODY,
+                completion=entries_by_index.get(paragraph.index, {}).get("completion") or None,
             )
             for paragraph in paragraphs
         ]
+        return ClassificationResult(
+            paragraphs=classified,
+            generated_title=tool_use.input.get("generated_title") or None,
+        )
