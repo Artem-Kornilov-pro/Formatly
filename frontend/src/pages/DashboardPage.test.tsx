@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as jobsApi from '../api/jobs'
 import type { Job } from '../api/types'
 import * as authContext from '../auth/AuthContext'
+import { ThemeProvider } from '../theme/ThemeContext'
 import { DashboardPage } from './DashboardPage'
 
 vi.mock('../api/jobs')
@@ -33,9 +34,11 @@ describe('DashboardPage', () => {
 
   it('shows the job list with a status badge', async () => {
     render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <DashboardPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     expect(await screen.findByText('thesis.docx')).toBeInTheDocument()
@@ -52,9 +55,11 @@ describe('DashboardPage', () => {
     })
 
     render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <DashboardPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     fireEvent.click(await screen.findByRole('button', { name: 'View report' }))
@@ -74,9 +79,11 @@ describe('DashboardPage', () => {
     })
 
     render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <DashboardPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     fireEvent.click(await screen.findByRole('button', { name: 'View report' }))

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import { Link } from 'react-router-dom'
 import { createJob, downloadJob, getJobReport, listJobs } from '../api/jobs'
 import { useAuth } from '../auth/AuthContext'
+import { ThemeSwitcher } from '../theme/ThemeSwitcher'
 import type { Job, ValidationReport } from '../api/types'
 
 const ACTIVE_STATUSES = new Set<Job['status']>(['pending', 'processing'])
@@ -84,9 +85,10 @@ export function DashboardPage() {
       <header className="dashboard-header">
         <h1>Formatly</h1>
         <div className="dashboard-account">
+          <ThemeSwitcher />
           <span>{user?.email}</span>
           <Link to="/settings">Settings</Link>
-          <button type="button" onClick={() => void logout()}>
+          <button type="button" className="button--secondary" onClick={() => void logout()}>
             Log out
           </button>
         </div>
@@ -126,7 +128,11 @@ export function DashboardPage() {
                       <button type="button" onClick={() => void handleDownload(job)}>
                         Download
                       </button>
-                      <button type="button" onClick={() => void handleToggleReport(job)}>
+                      <button
+                        type="button"
+                        className="button--secondary"
+                        onClick={() => void handleToggleReport(job)}
+                      >
                         {isExpanded ? 'Hide report' : 'View report'}
                       </button>
                     </>

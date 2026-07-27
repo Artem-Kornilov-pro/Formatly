@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { getMyProfile, updateMyProfile } from '../api/profiles'
+import { ThemeSwitcher } from '../theme/ThemeSwitcher'
 import type { FormattingRules, MarginsMm } from '../api/types'
 
 export function SettingsPage() {
@@ -58,7 +59,10 @@ export function SettingsPage() {
     <div className="settings-page">
       <div className="settings-header">
         <h1>Formatting settings</h1>
-        <Link to="/">Back to dashboard</Link>
+        <div className="site-header-actions">
+          <ThemeSwitcher />
+          <Link to="/dashboard">Back to dashboard</Link>
+        </div>
       </div>
 
       <form className="settings-form" onSubmit={handleSubmit}>

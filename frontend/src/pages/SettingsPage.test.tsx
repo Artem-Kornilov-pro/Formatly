@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as profilesApi from '../api/profiles'
 import type { FormattingRules } from '../api/types'
+import { ThemeProvider } from '../theme/ThemeContext'
 import { SettingsPage } from './SettingsPage'
 
 vi.mock('../api/profiles')
@@ -32,9 +33,11 @@ describe('SettingsPage', () => {
 
   it('loads and displays the current settings', async () => {
     render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <SettingsPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     expect(await screen.findByDisplayValue('Times New Roman')).toBeInTheDocument()
@@ -42,9 +45,11 @@ describe('SettingsPage', () => {
 
   it('saves edited settings', async () => {
     render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <SettingsPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     const fontInput = await screen.findByDisplayValue('Times New Roman')
@@ -62,9 +67,11 @@ describe('SettingsPage', () => {
 
   it('saves the table of contents toggle', async () => {
     render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <SettingsPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     const tocCheckbox = await screen.findByLabelText(/automatic table of contents/i)
@@ -80,9 +87,11 @@ describe('SettingsPage', () => {
 
   it('saves the AI light editing toggle', async () => {
     render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <SettingsPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     const aiCheckbox = await screen.findByLabelText(/let ai add a missing title/i)
@@ -102,9 +111,11 @@ describe('SettingsPage', () => {
     )
 
     render(
-      <MemoryRouter>
-        <SettingsPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <SettingsPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     )
 
     const fontInput = await screen.findByDisplayValue('Times New Roman')
