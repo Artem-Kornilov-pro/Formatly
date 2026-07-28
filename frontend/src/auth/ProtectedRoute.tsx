@@ -1,11 +1,12 @@
 import { Navigate, Outlet } from 'react-router-dom'
+import { Spinner } from '../components/Spinner'
 import { useAuth } from './AuthContext'
 
 export function ProtectedRoute() {
   const { user, isLoading } = useAuth()
 
   if (isLoading) {
-    return <p className="loading">Loading…</p>
+    return <Spinner />
   }
 
   if (!user) {
