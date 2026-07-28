@@ -7,8 +7,8 @@ on:
     branches: [master]
 
 jobs:
-  backend:
-    name: Backend
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,22 +19,61 @@ jobs:
       - name: Build backend image
         run: docker compose build backend
 
-      - name: Lint
+      - name: Backend lint
         run: docker compose run --rm backend ruff check .
 
-      - name: Test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend lint
+        working-directory: frontend
+        run: npm run lint
+
+  test:
+    name: Test
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up env file
+        run: cp .env.example .env
+
+      - name: Build backend image
+        run: docker compose build backend
+
+      - name: Backend tests
         run: docker compose run --rm backend pytest
 
-      - name: Tear down
+      - name: Tear down backend test services
         if: always()
         run: docker compose down -v
 
-  frontend:
-    name: Frontend
-    runs-on: ubuntu-latest
-    defaults:
-      run:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
         working-directory: frontend
+        run: npm ci
+
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm run test
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -44,14 +83,40 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
+        working-directory: frontend
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm run test
-
-      - name: Build
+      - name: Frontend build
+        working-directory: frontend
         run: npm run build
+
+  docker-compose:
+    name: Docker Compose
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up env file
+        run: cp .env.example .env
+
+      - name: Start the full stack
+        run: docker compose up -d --build
+
+      - name: Wait for the backend to become healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health; then exit 0; fi
+            sleep 2
+          done
+          echo "backend did not become healthy in time"
+          docker compose logs
+          exit 1
+
+      - name: Check the frontend is serving
+        run: curl -sf http://localhost:5173/ > /dev/null
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
