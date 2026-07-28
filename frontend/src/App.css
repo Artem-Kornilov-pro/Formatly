@@ -248,6 +248,16 @@ a {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   flex-wrap: wrap;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.job-row:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .job-name {
