@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as jobsApi from '../api/jobs'
 import type { Job } from '../api/types'
@@ -91,5 +91,22 @@ describe('DashboardPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide report' }))
     expect(screen.queryByText('left margin is 25mm, expected 30mm')).not.toBeInTheDocument()
+  })
+
+  it('navigates to /settings when the Settings button is clicked', async () => {
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/settings" element={<p>Settings page</p>} />
+          </Routes>
+        </MemoryRouter>
+      </ThemeProvider>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }))
+
+    expect(await screen.findByText('Settings page')).toBeInTheDocument()
   })
 })

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { createJob, downloadJob, getJobReport, listJobs } from '../api/jobs'
 import { useAuth } from '../auth/AuthContext'
 import { ThemeSwitcher } from '../theme/ThemeSwitcher'
@@ -10,6 +10,7 @@ const POLL_INTERVAL_MS = 3000
 
 export function DashboardPage() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [jobs, setJobs] = useState<Job[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,7 +88,13 @@ export function DashboardPage() {
         <div className="dashboard-account">
           <ThemeSwitcher />
           <span>{user?.email}</span>
-          <Link to="/settings">Settings</Link>
+          <button
+            type="button"
+            className="button--secondary"
+            onClick={() => navigate('/settings')}
+          >
+            Settings
+          </button>
           <button type="button" className="button--secondary" onClick={() => void logout()}>
             Log out
           </button>
