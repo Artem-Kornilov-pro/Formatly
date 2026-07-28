@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { getMyProfile, updateMyProfile } from '../api/profiles'
+import { Spinner } from '../components/Spinner'
 import { ThemeSwitcher } from '../theme/ThemeSwitcher'
 import type { FormattingRules, MarginsMm } from '../api/types'
 
@@ -48,7 +49,7 @@ export function SettingsPage() {
   }
 
   if (isLoading) {
-    return <p className="loading">Loading…</p>
+    return <Spinner />
   }
 
   if (!rules) {

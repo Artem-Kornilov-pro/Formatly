@@ -320,13 +320,36 @@ a {
   margin: 0;
 }
 
-/* --- Settings --- */
+/* --- Spinner --- */
 
-.loading {
-  text-align: center;
-  color: var(--color-text-muted);
+.spinner-wrap {
+  display: flex;
+  justify-content: center;
   margin-top: 4rem;
 }
+
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.6s;
+  }
+}
+
+/* --- Settings --- */
 
 .settings-page {
   max-width: 32rem;
