@@ -36,6 +36,18 @@ async def test_register_rejects_short_password(client: AsyncClient):
     assert response.status_code == 422
 
 
+async def test_register_rejects_password_without_a_special_character(client: AsyncClient):
+    response = await _register(client, password="alllettersnospecial")
+
+    assert response.status_code == 422
+
+
+async def test_register_accepts_password_with_a_special_character(client: AsyncClient):
+    response = await _register(client, password="letters!8chars")
+
+    assert response.status_code == 201
+
+
 async def test_login_returns_token_pair(client: AsyncClient):
     await _register(client)
 

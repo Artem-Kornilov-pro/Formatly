@@ -50,9 +50,15 @@ export function RegisterPage() {
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="new-password"
               minLength={8}
+              pattern=".*[^A-Za-z0-9].*"
+              title="At least 8 characters, including one special character"
+              aria-describedby="password-hint"
               required
             />
           </label>
+          <small id="password-hint" className="field-hint">
+            At least 8 characters, including one special character.
+          </small>
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Creating account…' : 'Register'}
           </button>

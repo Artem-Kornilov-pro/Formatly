@@ -157,6 +157,11 @@ a {
   color: inherit;
 }
 
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
 .auth-switch {
   text-align: center;
   font-size: 0.9rem;
