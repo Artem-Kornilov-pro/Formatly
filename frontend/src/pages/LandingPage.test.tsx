@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import * as authContext from '../auth/AuthContext'
-import { ThemeProvider } from '../theme/ThemeContext'
+import { ThemeProvider } from '../theme/ThemeProvider'
 import { LandingPage } from './LandingPage'
 
 vi.mock('../auth/AuthContext')

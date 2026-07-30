@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as authApi from '../api/auth'
-import { AuthProvider } from '../auth/AuthContext'
-import { ThemeProvider } from '../theme/ThemeContext'
+import { AuthProvider } from '../auth/AuthProvider'
+import { ThemeProvider } from '../theme/ThemeProvider'
 import { RegisterPage } from './RegisterPage'
 
 vi.mock('../api/auth')

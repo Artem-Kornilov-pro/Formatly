@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as profilesApi from '../api/profiles'
 import type { FormattingRules } from '../api/types'
-import { ThemeProvider } from '../theme/ThemeContext'
+import { ThemeProvider } from '../theme/ThemeProvider'
 import { SettingsPage } from './SettingsPage'
 
 vi.mock('../api/profiles')
