@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { THEME_STORAGE_KEY, ThemeProvider } from './ThemeContext'
+import { THEME_STORAGE_KEY } from './ThemeContext'
+import { ThemeProvider } from './ThemeProvider'
 import { ThemeSwitcher } from './ThemeSwitcher'
 
 function renderSwitcher() {

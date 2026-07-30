@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as jobsApi from '../api/jobs'
 import type { Job } from '../api/types'
 import * as authContext from '../auth/AuthContext'
-import { ThemeProvider } from '../theme/ThemeContext'
+import { ThemeProvider } from '../theme/ThemeProvider'
 import { DashboardPage } from './DashboardPage'
 
 vi.mock('../api/jobs')

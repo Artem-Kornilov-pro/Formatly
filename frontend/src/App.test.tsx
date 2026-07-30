@@ -2,8 +2,8 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
-import { AuthProvider } from './auth/AuthContext'
-import { ThemeProvider } from './theme/ThemeContext'
+import { AuthProvider } from './auth/AuthProvider'
+import { ThemeProvider } from './theme/ThemeProvider'
 
 describe('App', () => {
   beforeEach(() => {
