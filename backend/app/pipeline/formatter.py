@@ -100,11 +100,12 @@ def apply_formatting(
         section.right_margin = Mm(rules.margins_mm.right)
 
     role_by_index = {paragraph.index: paragraph.role for paragraph in classified}
-    completion_by_index = (
-        {paragraph.index: paragraph.completion for paragraph in classified if paragraph.completion}
+    completed_paragraphs = (
+        [paragraph for paragraph in classified if paragraph.completion]
         if rules.ai_light_editing_enabled
-        else {}
+        else []
     )
+    completion_by_index = {paragraph.index: paragraph.completion for paragraph in completed_paragraphs}
     body_alignment = _ALIGNMENTS[rules.paragraph_alignment]
 
     for index, paragraph in enumerate(document.paragraphs):
@@ -163,7 +164,7 @@ def apply_formatting(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     document.save(str(output_path))
 
-    return _describe_changes(rules, toc_inserted, inserted_title, len(completion_by_index))
+    return _describe_changes(rules, toc_inserted, inserted_title, completed_paragraphs)
 
 
 def _append_completion(paragraph, completion: str) -> None:
@@ -282,11 +283,21 @@ def _insert_table_of_contents(
     return True
 
 
+_SNIPPET_MAX_CHARS = 40
+
+
+def _ending_snippet(text: str) -> str:
+    text = text.strip()
+    if len(text) <= _SNIPPET_MAX_CHARS:
+        return text
+    return "…" + text[-_SNIPPET_MAX_CHARS:]
+
+
 def _describe_changes(
     rules: FormattingRules,
     toc_inserted: bool,
     inserted_title: str | None,
-    completions_applied: int,
+    completed_paragraphs: list[ClassifiedParagraph],
 ) -> list[str]:
     changes = [
         f"set page margins to {rules.margins_mm.top}/{rules.margins_mm.bottom}/"
@@ -325,9 +336,10 @@ def _describe_changes(
     if inserted_title:
         changes.append(f'generated a document title ("{inserted_title}") since none was found')
 
-    if completions_applied:
+    for paragraph in completed_paragraphs:
         changes.append(
-            f"completed {completions_applied} paragraph(s) that looked cut off mid-sentence"
+            f'completed a paragraph ending "{_ending_snippet(paragraph.text)}" by appending: '
+            f'"{paragraph.completion}"'
         )
 
     return changes

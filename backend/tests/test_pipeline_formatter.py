@@ -343,7 +343,11 @@ def test_completion_is_appended_to_the_paragraphs_text(tmp_path: Path):
     for run in result.paragraphs[0].runs:
         assert run.font.name == "Times New Roman"
         assert run.font.size.pt == 14
-    assert any("completed 1 paragraph" in change for change in changes)
+    assert any(
+        'completed a paragraph ending "The results show a clear trend and"'
+        ' by appending: "continue to improve over time."' in change
+        for change in changes
+    )
 
 
 def test_completion_skipped_when_ai_light_editing_disabled(tmp_path: Path):
@@ -371,6 +375,64 @@ def test_completion_skipped_when_ai_light_editing_disabled(tmp_path: Path):
     result = Document(str(output_path))
     assert result.paragraphs[0].text == "The results show a clear trend and"
     assert not any("completed" in change for change in changes)
+
+
+def test_completion_description_truncates_a_long_original_ending(tmp_path: Path):
+    long_text = (
+        "This is a much longer paragraph that goes on for a while before it "
+        "gets cut off and"
+    )
+    document = Document()
+    document.add_paragraph(long_text)
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [
+        ClassifiedParagraph(
+            index=0, text=long_text, role=ParagraphRole.BODY, completion="stops there."
+        )
+    ]
+    changes = apply_formatting(
+        input_path, output_path, classified, FormattingRules(generate_toc=False)
+    )
+
+    completion_change = next(change for change in changes if "appending" in change)
+    assert "…" in completion_change
+    assert "gets cut off and" in completion_change
+    assert "This is a much longer" not in completion_change
+
+
+def test_completion_description_lists_each_completion_separately(tmp_path: Path):
+    document = Document()
+    document.add_paragraph("First cut off sentence and")
+    document.add_paragraph("Second cut off sentence and")
+    input_path = tmp_path / "input.docx"
+    document.save(str(input_path))
+    output_path = tmp_path / "output.docx"
+
+    classified = [
+        ClassifiedParagraph(
+            index=0,
+            text="First cut off sentence and",
+            role=ParagraphRole.BODY,
+            completion="so it continues.",
+        ),
+        ClassifiedParagraph(
+            index=1,
+            text="Second cut off sentence and",
+            role=ParagraphRole.BODY,
+            completion="finishes differently.",
+        ),
+    ]
+    changes = apply_formatting(
+        input_path, output_path, classified, FormattingRules(generate_toc=False)
+    )
+
+    completion_changes = [change for change in changes if "appending" in change]
+    assert len(completion_changes) == 2
+    assert any("so it continues." in change for change in completion_changes)
+    assert any("finishes differently." in change for change in completion_changes)
 
 
 def test_generated_title_is_inserted_when_none_classified(tmp_path: Path):
